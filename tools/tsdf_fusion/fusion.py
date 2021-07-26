@@ -6,7 +6,7 @@ from numba import njit, prange
 from skimage import measure
 import torch
 
-
+#tsdf_vol_list.append(TSDFVolume(vol_bnds, voxel_size=args.voxel_size * 2 ** l, margin=args.margin))
 class TSDFVolume:
     """Volumetric TSDF Fusion of RGB-D Images.
     """
@@ -15,13 +15,13 @@ class TSDFVolume:
         """Constructor.
 
         Args:
-          vol_bnds (ndarray): An ndarray of shape (3, 2). Specifies the
-            xyz bounds (min/max) in meters.
+          vol_bnds (ndarray): An ndarray of shape (3, 2). Specifies the xyz bounds (min/max) in meters.
           voxel_size (float): The volume discretization in meters.
         """
         # try:
         import pycuda.driver as cuda
         import pycuda.autoinit
+        # import pycuda.compiler
         from pycuda.compiler import SourceModule
 
         FUSION_GPU_MODE = 1
@@ -37,18 +37,17 @@ class TSDFVolume:
         # Define voxel volume parameters
         self._vol_bnds = vol_bnds
         self._voxel_size = float(voxel_size)
-        self._trunc_margin = margin * self._voxel_size  # truncation on SDF
+        self._trunc_margin = margin * self._voxel_size  # truncation on SDF  , margin 기본값 3
         self._color_const = 256 * 256
 
         # Adjust volume bounds and ensure C-order contiguous
-        self._vol_dim = np.round((self._vol_bnds[:, 1] - self._vol_bnds[:, 0]) / self._voxel_size).copy(
-            order='C').astype(int)
+        self._vol_dim = np.round((self._vol_bnds[:, 1] - self._vol_bnds[:, 0]) / self._voxel_size).copy(order='C').astype(int) #??..
         self._vol_bnds[:, 1] = self._vol_bnds[:, 0] + self._vol_dim * self._voxel_size
         self._vol_origin = self._vol_bnds[:, 0].copy(order='C').astype(np.float32)
 
         # Initialize pointers to voxel volume in CPU memory
         self._tsdf_vol_cpu = np.ones(self._vol_dim).astype(np.float32)
-        # for computing the cumulative moving average of observations per voxel
+        # for computing the cumulative moving average of observations per voxel (voxel 당 누적 이동량)
         self._weight_vol_cpu = np.zeros(self._vol_dim).astype(np.float32)
         self._color_vol_cpu = np.zeros(self._vol_dim).astype(np.float32)
 
@@ -312,6 +311,7 @@ class TSDFVolume:
         tsdf_vol, color_vol, weight_vol = self.get_volume()
 
         # Marching cubes
+                    #Lewiner marching cubes algorithms to find surface volumetric data
         verts = measure.marching_cubes_lewiner(tsdf_vol, level=0)[0]
         verts_ind = np.round(verts).astype(int)
         verts = verts * self._voxel_size + self._vol_origin
@@ -345,26 +345,24 @@ class TSDFVolume:
         colors = colors.astype(np.uint8)
         return verts, faces, norms, colors
 
-
+#view_frust_pts = rigid_transform(view_frust_pts.T, cam_pose).T
 def rigid_transform(xyz, transform):
     """Applies a rigid transform to an (N, 3) pointcloud.
     """
-    xyz_h = np.hstack([xyz, np.ones((len(xyz), 1), dtype=np.float32)])
-    xyz_t_h = np.dot(transform, xyz_h.T).T
+    xyz_h = np.hstack([xyz, np.ones((len(xyz), 1), dtype=np.float32)]) # 배열 옆으로, 가로로 결합
+    xyz_t_h = np.dot(transform, xyz_h.T).T    #element-wise로 곱해서 더하기 연산
     return xyz_t_h[:, :3]
 
-
+#view_frust_pts = get_view_frustum(depth_im, cam_intr, cam_pose)
 def get_view_frustum(depth_im, cam_intr, cam_pose):
     """Get corners of 3D camera view frustum of depth image
     """
     im_h = depth_im.shape[0]
     im_w = depth_im.shape[1]
-    max_depth = np.max(depth_im)
-    view_frust_pts = np.array([
-        (np.array([0, 0, 0, im_w, im_w]) - cam_intr[0, 2]) * np.array([0, max_depth, max_depth, max_depth, max_depth]) /
-        cam_intr[0, 0],
-        (np.array([0, 0, im_h, 0, im_h]) - cam_intr[1, 2]) * np.array([0, max_depth, max_depth, max_depth, max_depth]) /
-        cam_intr[1, 1],
+    max_depth = np.max(depth_im)   # depth max값 역할??
+    view_frust_pts = np.array([    #x,y,z   ??????  cam_intr 기준값으로  빼고 나누고 한건가...
+        (np.array([0, 0, 0, im_w, im_w]) - cam_intr[0, 2]) * np.array([0, max_depth, max_depth, max_depth, max_depth]) /cam_intr[0, 0],
+        (np.array([0, 0, im_h, 0, im_h]) - cam_intr[1, 2]) * np.array([0, max_depth, max_depth, max_depth, max_depth]) /cam_intr[1, 1],
         np.array([0, max_depth, max_depth, max_depth, max_depth])
     ])
     view_frust_pts = rigid_transform(view_frust_pts.T, cam_pose).T

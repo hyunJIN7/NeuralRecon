@@ -9,7 +9,7 @@ def collate_fn(list_data):
     # Concatenate all lists
     return cam_pose, depth_im, _
 
-
+#dataset = ScanNetDataset(n_imgs, scene, args.data_path, args.max_depth)
 class ScanNetDataset(torch.utils.data.Dataset):
     """Pytorch Dataset for a single scene. getitem loads individual frames"""
 

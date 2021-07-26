@@ -1,8 +1,8 @@
 ray
 transforms3d
-tqdm
+tqdm~=4.61.2
 opencv-python
-numba
+numba~=0.47.0
 pycuda
 tensorboardX
 scikit-image
@@ -14,3 +14,6 @@ gdown # for downloading checkpoints
 pyrender~=0.1.45
 pyglet
 open3d # for tsdf fusion in evaluation
+
+numpy~=1.16.6
+pil~=1.1.7
