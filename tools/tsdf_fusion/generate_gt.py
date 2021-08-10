@@ -80,7 +80,7 @@ def save_tsdf_full(args, scene_path, cam_intr, depth_list, cam_pose_list, color_
     # Initialize voxel volume
     print("Initializing voxel volume...")
     tsdf_vol_list = []
-    for l in range(args.num_layers): # layer 기본값 3  margin default 3
+    for l in range(args.num_layers):   # layer 기본값 3  margin default 3
         tsdf_vol_list.append(TSDFVolume(vol_bnds, voxel_size=args.voxel_size * 2 ** l, margin=args.margin))
                             #RGB image의 TSDF fusion
     # Loop through RGB-D images and fuse them together
@@ -212,13 +212,15 @@ def process_with_single_worker(args, scannet_files):
         color_all = {}
 
         if args.dataset == 'scannet':
-            n_imgs = len(os.listdir(os.path.join(args.data_path, scene, 'color'))) #color 파일 없던데
-            intrinsic_dir = os.path.join(args.data_path, scene, 'intrinsic', 'intrinsic_depth.txt') #이게 뭘까
+            #print('scene ::::  ',  scene )
+            #TODO : 지우기
+            n_imgs = len(os.listdir(os.path.join(args.data_path, scene, 'images'))) #'color'
+            intrinsic_dir = os.path.join(args.data_path, scene, 'intrinsic', 'intrinsic_depth.txt')   #이게 뭘까
             cam_intr = np.loadtxt(intrinsic_dir, delimiter=' ')[:3, :3] # 이게 뭐지??? 여기에 포즈가 담긴건가
             dataset = ScanNetDataset(n_imgs, scene, args.data_path, args.max_depth)
                 #여기서 return cam_pose, depth_im, color_image
 
-                                #데이터를 순회할 수 있는 파이썬 iterable로 만들어 줌,dataset에서 dataload
+                                # 데이터를 순회할 수 있는 파이썬 iterable로 만들어 줌, dataset에서 data load
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=None, collate_fn=collate_fn,
                                                  batch_sampler=None, num_workers=args.loader_num_workers)
                                     # 인자로 넘어온 목록을 차례대로 iterator 객체를 반환
@@ -293,3 +295,4 @@ if __name__ == "__main__":
 
     if args.dataset == 'scannet':
         generate_pkl(args)
+#  python tools/tsdf_fusion/generate_gt.py --save_name all_tsdf_9 --window_size 9 --data_path /home/hyunjin/PycharmProjects/NeuralRecon/data/neucon_demodata_b5f1

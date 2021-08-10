@@ -41,8 +41,8 @@ class Compose(object):
 class ToTensor(object):
     """ Convert to torch tensors"""
 
-    def __call__(self, data):
-        data['imgs'] = torch.Tensor(np.stack(data['imgs']).transpose([0, 3, 1, 2]))
+    def __call__(self, data):   # data는 transform(data)..?
+        data['imgs'] = torch.Tensor(np.stack(data['imgs']).transpose([0, 3, 1, 2]))  #transpose 뒤 뭐지
         data['intrinsics'] = torch.Tensor(data['intrinsics'])
         data['extrinsics'] = torch.Tensor(data['extrinsics'])
         if 'depth' in data.keys():
@@ -53,7 +53,7 @@ class ToTensor(object):
                     data['tsdf_list_full'][i] = torch.Tensor(data['tsdf_list_full'][i])
         return data
 
-
+#transforms.IntrinsicsPoseToProjection(cfg.TEST.N_VIEWS, 4)]   N_VIEWS 9
 class IntrinsicsPoseToProjection(object):
     """ Convert intrinsics and extrinsics matrices to a single projection matrix"""
 
@@ -61,18 +61,19 @@ class IntrinsicsPoseToProjection(object):
         self.nviews = n_views
         self.stride = stride
 
+    #.......?????????????
     def rotate_view_to_align_xyplane(self, Tr_camera_to_world):
         # world space normal [0, 0, 1]  camera space normal [0, -1, 0]
-        z_c = np.dot(np.linalg.inv(Tr_camera_to_world), np.array([0, 0, 1, 0]))[: 3]
-        axis = np.cross(z_c, np.array([0, -1, 0]))
-        axis = axis / np.linalg.norm(axis)
+        z_c = np.dot(np.linalg.inv(Tr_camera_to_world), np.array([0, 0, 1, 0]))[: 3]  #linalg에  Inverse of a square matrix, 왜 하지 ..
+        axis = np.cross(z_c, np.array([0, -1, 0])) # 벡터 곱 연산,외적 , 수직일때 최대, 평행일때 최소    Inverse of a square matrix  https://rfriend.tistory.com/tag/%EA%B5%90%EC%B0%A8%EA%B3%B1
+        axis = axis / np.linalg.norm(axis)   #
         theta = np.arccos(-z_c[1] / (np.linalg.norm(z_c)))
-        quat = transforms3d.quaternions.axangle2quat(axis, theta)
-        rotation_matrix = transforms3d.quaternions.quat2mat(quat)
-        return rotation_matrix
+        quat = transforms3d.quaternions.axangle2quat(axis, theta)   # Quaternion for rotation of angle `theta` around `vector`
+        rotation_matrix = transforms3d.quaternions.quat2mat(quat)  #Calculate rotation matrix corresponding to quaternion
+        return rotation_matrix      #quaternion : 방향,회전 표현, (x,y,z,w) 벡터(x,y,z)와 스칼라 (z)  , 짐벌락 문제 발생안함  https://hub1234.tistory.com/21
 
     def __call__(self, data):
-        middle_pose = data['extrinsics'][self.nviews // 2]
+        middle_pose = data['extrinsics'][self.nviews // 2]  # //:몫 연산자
         rotation_matrix = self.rotate_view_to_align_xyplane(middle_pose)
         rotation_matrix4x4 = np.eye(4)
         rotation_matrix4x4[:3, :3] = rotation_matrix
@@ -104,11 +105,12 @@ def pad_scannet(img, intrinsics):
     w, h = img.size
     if w == 1296 and h == 968:
         img = ImageOps.expand(img, border=(0, 2))
-        intrinsics[1, 2] += 2
+        intrinsics[1, 2] += 2 #이미지 크기 늘린만큼 그냥 늘려주나??...
+        #TODO: +=2 값 변화??
     return img, intrinsics
 
 
-class ResizeImage(object):
+class ResizeImage(object):  #(640,480) 으로 고정시킴 , 4:3비율  왜
     """ Resize everything to given size.
 
     Intrinsics are assumed to refer to image prior to resize.
@@ -119,11 +121,13 @@ class ResizeImage(object):
         self.size = size
 
     def __call__(self, data):
-        for i, im in enumerate(data['imgs']):
-            im, intrinsics = pad_scannet(im, data['intrinsics'][i])
+        for i, im in enumerate(data['imgs']):  #data가 뭘까
+            im, intrinsics = pad_scannet(im, data['intrinsics'][i]) #이미지 비율 4:3으로 맞추는 과정, Scannet 기준 세로 4pixel 늘리기
+            #intrinsics (9,3,3)  이미지 하나당 9개? ..
             w, h = im.size
-            im = im.resize(self.size, Image.BILINEAR)
-            intrinsics[0, :] /= (w / self.size[0])
+            im = im.resize(self.size, Image.BILINEAR)  #bilinear interpolation으로 이미지 resize..? 위에 pad_scannet에선 특정 사이즈일때만 사지으에 변화를 줌
+            #카메라 내부 매개변수 알면 픽셀좌표와 정규 좌표 사이 변환 가능하니,이미지 -> (640,480)으로  resize 했으니 intrinsics도 그 비율에 맞춰 변화
+            intrinsics[0, :] /= (w / self.size[0]) #640
             intrinsics[1, :] /= (h / self.size[1])
 
             data['imgs'][i] = np.array(im, dtype=np.float32)
@@ -140,6 +144,9 @@ class RandomTransformSpace(object):
         This affects pose as well as TSDFs.
     """
 
+# transforms.RandomTransformSpace(
+#                  cfg.MODEL.N_VOX, cfg.MODEL.VOXEL_SIZE, random_rotation=False, random_translation=False,
+#                  paddingXY=0, paddingZ=0, max_epoch=cfg.TRAIN.EPOCHS)
     def __init__(self, voxel_dim, voxel_size, random_rotation=True, random_translation=True,
                  paddingXY=1.5, paddingZ=.25, origin=[0, 0, 0], max_epoch=999, max_depth=3.0):
         """
@@ -149,7 +156,7 @@ class RandomTransformSpace(object):
             voxel_size: floats specifying the size of a voxel
             random_rotation: wheater or not to apply a random rotation
             random_translation: wheater or not to apply a random translation
-            paddingXY: amount to allow croping beyond maximum extent of TSDF
+            paddingXY: amount to allow croping beyond maximum extent of TSDF, max TSDF 값 넘어서면 crop할 양
             paddingZ: amount to allow croping beyond maximum extent of TSDF
             origin: origin of the voxel volume (xyz position of voxel (0,0,0))
             max_epoch: maximum epoch

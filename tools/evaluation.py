@@ -45,9 +45,9 @@ def parse_args():
     parser.add_argument('--max_depth', default=10., type=float,
                         help='mask out large depth values since they are noisy')
     parser.add_argument("--data_path", metavar="DIR",
-                        help="path to dataset", default='./data/scannet/scans_test')
+                        help="path to dataset", default='./data/ios_logger')  #TODO 잠시 바꿈   ./data/scannet/scans_test
     parser.add_argument("--gt_path", metavar="DIR",
-                        help="path to raw dataset", default='/data/scannet/scannet/scans_test')
+                        help="path to raw dataset", default='/data/ios_logger')  #  /data/scannet/scannet/scans_test
 
     # ray config
     parser.add_argument('--n_proc', type=int, default=2, help='#processes launched to process scenes.')
@@ -104,7 +104,7 @@ def process(scene, total_scenes_index, total_scenes_count):
     save_path = args.model
     width, height = 640, 480
 
-    test_framid = os.listdir(os.path.join(args.data_path, scene, 'color'))
+    test_framid = os.listdir(os.path.join(args.data_path, scene, 'images'))  #TODO:잠시 바꿈 'color'
     n_imgs = len(test_framid)
     intrinsic_dir = os.path.join(args.data_path, scene, 'intrinsic', 'intrinsic_depth.txt')
     cam_intr = np.loadtxt(intrinsic_dir, delimiter=' ')[:3, :3]

@@ -10,7 +10,7 @@ from models import NeuralRecon
 from utils import SaveScene
 from config import cfg, update_config
 from datasets import find_dataset_def, transforms
-from tools.process_arkit_data import process_data
+from tools.process_drone_data import process_data
 
 
 parser = argparse.ArgumentParser(description='NeuralRecon Real-time Demo')
@@ -30,7 +30,7 @@ update_config(cfg, args)
 
 if not os.path.exists(os.path.join(cfg.TEST.PATH, 'SyncedPoses.txt')):
     logger.info("First run on this captured data, start the pre-processing...")
-    process_data(cfg.TEST.PATH)
+    process_data(cfg.TEST.PATH,'EuRoc');
 else:
     logger.info("Found SyncedPoses.txt, skipping data pre-processing...")
 

@@ -6,17 +6,19 @@ from tools.kp_reproject import *
 from tools.sync_poses import *
 
 # params
-project_path = '/home/sunjiaming/Repositories/NeuralFusion/data/neucon_demo/phone_room_0'
+project_path = '/home/hyunjin/PycharmProjects/NeuralRecon/data/MH_02_easy/mav0'
 # project_path = '/home/sunjiaming/Repositories/NeuralFusion/data/neucon_demo/conf_0'
 
-def process_data(data_path, data_source='ARKit', window_size=9, min_angle=15, min_distance=0.1, ori_size=(1920, 1440), size=(640, 480)):
+def process_data(data_path, data_source='EuRoc', window_size=9, min_angle=15, min_distance=0.1, ori_size=(1920, 1440), size=(640, 480)):
     # save image
-    print('Extract images from video...')
-    video_path = os.path.join(data_path, 'Frames.m4v')
-    image_path = os.path.join(data_path, 'images')
-    if not os.path.exists(image_path):
-        os.mkdir(image_path)
-    extract_frames(video_path, out_folder=image_path, size=size)
+    # print('Extract images from video...')
+    # video_path = os.path.join(data_path, 'Frames.m4v')
+    # image_path = os.path.join(data_path, 'images')
+    # if not os.path.exists(image_path):
+    #     os.mkdir(image_path)
+    # extract_frames(video_path, out_folder=image_path, size=size)
+    #이미지 data path
+    image_path = os.path.join(data_path, 'cam0/data')
 
     # load intrin and extrin
     print('Load intrinsics and extrinsics')

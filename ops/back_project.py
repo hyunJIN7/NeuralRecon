@@ -43,7 +43,7 @@ def back_project(coords, origin, voxel_size, feats, KRcam):
         # Project grid
         # TODO: check
         # im_p = proj_batch @ rs_grid
-        im_p = proj_batch * rs_grid
+        im_p = proj_batch @ rs_grid
         im_x, im_y, im_z = im_p[:, 0], im_p[:, 1], im_p[:, 2]
         im_x = im_x / im_z
         im_y = im_y / im_z

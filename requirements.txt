@@ -1,19 +1,21 @@
-ray
-transforms3d
+ray~=1.4.1
+transforms3d~=0.3.1
 tqdm~=4.61.2
-opencv-python
-numba~=0.47.0
+opencv-python~=4.5.3.56
+numba~=0.53.1
 pycuda
-tensorboardX
-scikit-image
+tensorboardX~=2.4
+scikit-image~=0.18.2
 trimesh~=3.9.18
-yacs
+yacs~=0.1.8
 h5py
-loguru
+loguru~=0.5.3
 gdown # for downloading checkpoints
 pyrender~=0.1.45
 pyglet
-open3d # for tsdf fusion in evaluation
+open3d~=0.13.0
 
 numpy~=1.16.6
 pil~=1.1.7
+torchvision~=0.7.0
+pillow~=8.3.1

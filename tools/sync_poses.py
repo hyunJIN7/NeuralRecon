@@ -3,9 +3,9 @@ import argparse
 
 
 def sync_intrinsics_and_poses(cam_file, pose_file, out_file):
-    """Load camera intrinsics"""
+    """Load camera intrinsics"""  # frane.txt -> camera intrinsics
     assert os.path.isfile(cam_file), "camera info:{} not found".format(cam_file)
-    with open(cam_file, "r") as f:
+    with open(cam_file, "r") as f:  # frame.txt 읽어서
         cam_intrinsic_lines = f.readlines()
     
     cam_intrinsics = []
@@ -14,8 +14,9 @@ def sync_intrinsics_and_poses(cam_file, pose_file, out_file):
         if len(line_data_list) == 0:
             continue
         cam_intrinsics.append([float(i) for i in line_data_list])
+        # frame.txt -> cam_instrinsic
 
-    """load camera poses"""
+    """load camera poses"""  # ARPose.txt -> camera pose
     assert os.path.isfile(pose_file), "camera info:{} not found".format(pose_file)
     with open(pose_file, "r") as f:
         cam_pose_lines = f.readlines()
@@ -27,12 +28,14 @@ def sync_intrinsics_and_poses(cam_file, pose_file, out_file):
             continue
         cam_poses.append([float(i) for i in line_data_list])
 
-    
+
+    """ outputfile로 syncpose 맞춰서 내보냄  """
     lines = []
     ip = 0
     length = len(cam_poses)
-    for i in range(len(cam_intrinsics)):
-        while ip + 1< length and abs(cam_poses[ip + 1][0] - cam_intrinsics[i][0]) < abs(cam_poses[ip][0] - cam_intrinsics[i][0]):
+    #campose와 intrinsic 으로 뭘 계산해서 line에 넣음
+    for i in range(len(cam_intrinsics)): #여기 역할  계산식 모르겠다.. 의미하는바?
+        while ip + 1 < length and abs(cam_poses[ip + 1][0] - cam_intrinsics[i][0]) < abs(cam_poses[ip][0] - cam_intrinsics[i][0]):
             ip += 1
         cam_pose = cam_poses[ip][:4] + cam_poses[ip][5:] + [cam_poses[ip][4]]
         line = [str(a) for a in cam_pose]

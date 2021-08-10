@@ -30,7 +30,7 @@ def rotx(t):
                      [0, c, -s],
                      [0, s, c]])
 
-
+                    #SyncedPoses.txt
 def load_camera_pose(cam_pose_dir, use_homogenous=True, data_source='TagBA'):
     if cam_pose_dir is not None and os.path.isfile(cam_pose_dir):
         pass
@@ -42,24 +42,28 @@ def load_camera_pose(cam_pose_dir, use_homogenous=True, data_source='TagBA'):
 
     pose_dict = dict()
 
-    def process(line_data_list):
+    def process(line_data_list): #syncedpose.txt
         line_data = np.array(line_data_list, dtype=float)
-        fid = line_data_list[0]
+        fid = line_data_list[0] #0부터 그냥 순번인듯
         trans = line_data[1:4]
-        quat = line_data[4:]
+        quat = line_data[4:]  #x,y,z,w 순?
         rot_mat = quat2mat(np.append(quat[-1], quat[:3]).tolist())
+                            # 여기선 (w,x,y,z) 순 인듯
         if data_source == 'ARKit':
-            rot_mat = rot_mat.dot(np.array([
+            # TODO: 왜하는거지
+            rot_mat = rot_mat.dot(np.array([  #dot은 아무튼 내적  열,행 크기 맞아야함
                 [1, 0, 0],
                 [0, -1, 0],
                 [0, 0, -1]
             ]))
-            rot_mat = rotx(np.pi / 2) @ rot_mat
+            rot_mat = rotx(np.pi / 2) @ rot_mat #외적으로 생각하면 될듯.....?
             trans = rotx(np.pi / 2) @ trans
         trans_mat = np.zeros([3, 4])
         trans_mat[:3, :3] = rot_mat
         trans_mat[:3, 3] = trans
-        if use_homogenous:
+        #rotation과 trans 합쳐 R|t 행렬 tans_mat 만든다
+
+        if use_homogenous:  #homogenous true라서 하나 더 늘리고
             trans_mat = np.vstack((trans_mat, [0, 0, 0, 1]))
         pose_dict[fid] = trans_mat
 
@@ -130,12 +134,12 @@ def load_camera_intrinsic(cam_file, data_source='TagBA'):
             if len(line_data_list) == 0:
                 continue
             cam_dict = dict()
-            cam_dict['K'] = np.array([
+            cam_dict['K'] = np.array([  #cam dict f,c 나온는  3x3 camera metrix
                 [line_data_list[2], 0, line_data_list[4]],
                 [0, line_data_list[3], line_data_list[5]],
                 [0, 0, 1]
             ], dtype=float)
-            cam_intrinsic_dict[str(int(line_data_list[1])).zfill(5)] = cam_dict
+            cam_intrinsic_dict[str(int(line_data_list[1])).zfill(5)] = cam_dict  #zfill 문자열 앞에 0 채우려고 zfill
         return cam_intrinsic_dict
     else:
         raise NotImplementedError(
