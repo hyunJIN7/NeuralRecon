@@ -23,14 +23,24 @@ parser.add_argument('opts',
                     help="Modify config options using the command-line",
                     default=None,
                     nargs=argparse.REMAINDER)
+#TODO:code 작동 확인
+parser.add_argument('--data_source',
+                    help='data source',
+                    default='Tum',
+                    type=str)
+
+
 
 # parse arguments and check
 args = parser.parse_args()
 update_config(cfg, args)
 
+#TODO : check,  python demo.py --cfg ./config/demo.yaml --data_source 'Tum' 나오긴 나옴
+data_source = cfg.TEST.DATA_SOURCE
+
 if not os.path.exists(os.path.join(cfg.TEST.PATH, 'SyncedPoses.txt')):
     logger.info("First run on this captured data, start the pre-processing...")
-    process_data(cfg.TEST.PATH,'EuRoc');
+    process_data(cfg.TEST.PATH, data_source);
 else:
     logger.info("Found SyncedPoses.txt, skipping data pre-processing...")
 

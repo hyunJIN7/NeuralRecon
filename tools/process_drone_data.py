@@ -3,13 +3,14 @@ import pickle
 from tqdm import tqdm
 
 from tools.kp_reproject import *
-from tools.sync_poses import *
+from tools.sync_poses_drone import *
 
 # params
-project_path = '/home/hyunjin/PycharmProjects/NeuralRecon/data/MH_02_easy/mav0'
+project_path = '/home/hyunjin/PycharmProjects/NeuralRecon/data/rgbd_dataset_freiburg1_room'
+#project_path = '/home/hyunjin/PycharmProjects/NeuralRecon/data/MH_02_easy/mav0'
 # project_path = '/home/sunjiaming/Repositories/NeuralFusion/data/neucon_demo/conf_0'
-
-def process_data(data_path, data_source='EuRoc', window_size=9, min_angle=15, min_distance=0.1, ori_size=(1920, 1440), size=(640, 480)):
+            #mav0 까지 들어온다 치고        , 'EuRoc'->drone   cameranum=1 넣을지말지
+def process_data(data_path, data_source='Tum',window_size=9, min_angle=15, min_distance=0.1, ori_size=(1920, 1440), size=(640, 480)):
     # save image
     # print('Extract images from video...')
     # video_path = os.path.join(data_path, 'Frames.m4v')
@@ -18,12 +19,21 @@ def process_data(data_path, data_source='EuRoc', window_size=9, min_angle=15, mi
     #     os.mkdir(image_path)
     # extract_frames(video_path, out_folder=image_path, size=size)
     #이미지 data path
-    image_path = os.path.join(data_path, 'cam0/data')
+    if data_source == 'Tum':
+        image_path = os.path.join(data_path, 'rgb')  # Tum
+    elif data_source == 'EuRoc':
+        image_path = os.path.join(data_path, 'cam0/data') #EuRoc
 
+
+    #TODO:일단 다 TUM 기준으로 코드 작성하겠다. 형식이 다르니까 따로 분리해야하나 일단 다 하고 생각
     # load intrin and extrin
-    print('Load intrinsics and extrinsics')
-    sync_intrinsics_and_poses(os.path.join(data_path, 'Frames.txt'), os.path.join(data_path, 'ARposes.txt'),
-                            os.path.join(data_path, 'SyncedPoses.txt'))
+    print('Load intrinsics and extrinsics')    #원래는 첫번쨰에 frame.txt 보내야하지만 rgb.txt로 보낸다.
+    sync_intrinsics_and_poses(os.path.join(data_path, 'rgb.txt'), os.path.join(data_path, 'groundtruth.txt'),
+                              os.path.join(data_path, 'SyncedPoses.txt'))
+    # sync_intrinsics_and_poses(os.path.join(data_path, 'Frames.txt'), os.path.join(data_path, 'ARposes.txt'),
+    #                         os.path.join(data_path, 'SyncedPoses.txt'))
+
+
 
     path_dict = path_parser(data_path, data_source=data_source)
     cam_intrinsic_dict = load_camera_intrinsic(
