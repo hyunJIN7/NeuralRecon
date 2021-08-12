@@ -38,6 +38,8 @@ _C.TEST = CN()
 _C.TEST.PATH = ''
 _C.TEST.N_VIEWS = 5
 _C.TEST.N_WORKERS = 4
+_C.TEST.DATA_SOURCE = 'Tum'  #TODO : check
+
 
 # model
 _C.MODEL = CN()

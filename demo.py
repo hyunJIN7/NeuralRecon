@@ -12,7 +12,7 @@ from config import cfg, update_config
 from datasets import find_dataset_def, transforms
 from tools.process_arkit_data import process_data
 
-
+# python demo.py --cfg ./config/demo.yaml
 parser = argparse.ArgumentParser(description='NeuralRecon Real-time Demo')
 parser.add_argument('--cfg',
                     help='experiment configure file name',

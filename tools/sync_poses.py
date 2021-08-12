@@ -34,7 +34,7 @@ def sync_intrinsics_and_poses(cam_file, pose_file, out_file):
     ip = 0
     length = len(cam_poses)
     #campose와 intrinsic 으로 뭘 계산해서 line에 넣음
-    for i in range(len(cam_intrinsics)): #여기 역할  계산식 모르겠다.. 의미하는바?
+    for i in range(len(cam_intrinsics)): #
         while ip + 1 < length and abs(cam_poses[ip + 1][0] - cam_intrinsics[i][0]) < abs(cam_poses[ip][0] - cam_intrinsics[i][0]):
             ip += 1
         cam_pose = cam_poses[ip][:4] + cam_poses[ip][5:] + [cam_poses[ip][4]]
