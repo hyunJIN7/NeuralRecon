@@ -10,7 +10,7 @@ MODE: 'test'
 
 TEST:
   # Change your own data path here
-  PATH:  '/home/hyunjin/PycharmProjects/NeuralRecon/data/5'
+  PATH:  '/home/hyunjin/PycharmProjects/NeuralRecon/data/rgbd_dataset_freiburg1_plant'
   N_VIEWS: 9
   N_WORKERS: 1
 

@@ -1,16 +1,14 @@
 import os
 import pickle
 from tqdm import tqdm
-
-from tools.kp_reproject import *
 from tools.sync_poses_drone import *
-
+from tools.kp_reproject import *
+# from tools.sync_poses_drone import *
 # params
 project_path = '/home/hyunjin/PycharmProjects/NeuralRecon/data/rgbd_dataset_freiburg1_room'
 #project_path = '/home/hyunjin/PycharmProjects/NeuralRecon/data/MH_02_easy/mav0'
-# project_path = '/home/sunjiaming/Repositories/NeuralFusion/data/neucon_demo/conf_0'
             #mav0 까지 들어온다 치고        , 'EuRoc'->drone   cameranum=1 넣을지말지
-def process_data(data_path, data_source='Tum',window_size=9, min_angle=15, min_distance=0.1, ori_size=(1920, 1440), size=(640, 480)):
+def process_data(data_path, data_source='Tum', window_size=9, min_angle=15, min_distance=0.1, ori_size=(1920, 1440), size=(640, 480)):
     # save image
     # print('Extract images from video...')
     # video_path = os.path.join(data_path, 'Frames.m4v')
@@ -32,8 +30,6 @@ def process_data(data_path, data_source='Tum',window_size=9, min_angle=15, min_d
                               os.path.join(data_path, 'SyncedPoses.txt'))
     # sync_intrinsics_and_poses(os.path.join(data_path, 'Frames.txt'), os.path.join(data_path, 'ARposes.txt'),
     #                         os.path.join(data_path, 'SyncedPoses.txt'))
-
-
 
     path_dict = path_parser(data_path, data_source=data_source)
     cam_intrinsic_dict = load_camera_intrinsic(

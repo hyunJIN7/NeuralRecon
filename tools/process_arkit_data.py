@@ -11,27 +11,39 @@ project_path = '/home/sunjiaming/Repositories/NeuralFusion/data/neucon_demo/phon
 
 def process_data(data_path, data_source='ARKit', window_size=9, min_angle=15, min_distance=0.1, ori_size=(1920, 1440), size=(640, 480)):
     # save image
-    print('Extract images from video...')
-    video_path = os.path.join(data_path, 'Frames.m4v')
-    image_path = os.path.join(data_path, 'images')
-    if not os.path.exists(image_path):
-        os.mkdir(image_path)
-    extract_frames(video_path, out_folder=image_path, size=size)
+    # print('Extract images from video...')
+    # video_path = os.path.join(data_path, 'Frames.m4v')
+    # image_path = os.path.join(data_path, 'images')
+    # if not os.path.exists(image_path):
+    #     os.mkdir(image_path)
+    # extract_frames(video_path, out_folder=image_path, size=size)
+    # 이미지 data path
+    # if data_source == 'Tum':
+    #     image_path = os.path.join(data_path, 'rgb')  # Tum
+    # elif data_source == 'EuRoc':
+    #     image_path = os.path.join(data_path, 'cam0/data')  # EuRoc
 
+    data_source = 'Tum'  # TODO: check, 일단 해놓음..
+    image_path = os.path.join(data_path, 'rgb')
+
+
+    # TODO:일단 다 TUM 기준으로 코드 작성하겠다. 형식이 다르니까 따로 분리해야하나 일단 다 하고 생각
     # load intrin and extrin
-    print('Load intrinsics and extrinsics')
-    sync_intrinsics_and_poses(os.path.join(data_path, 'Frames.txt'), os.path.join(data_path, 'ARposes.txt'),
-                            os.path.join(data_path, 'SyncedPoses.txt'))
+    print('Load intrinsics and extrinsics')  # 원래는 첫번쨰에 frame.txt 보내야하지만 rgb.txt로 보낸다.
+    sync_intrinsics_and_poses(os.path.join(data_path, 'rgb.txt'), os.path.join(data_path, 'groundtruth.txt'),
+                              os.path.join(data_path, 'SyncedPoses.txt'))
 
     path_dict = path_parser(data_path, data_source=data_source)
-    cam_intrinsic_dict = load_camera_intrinsic(
-        path_dict['cam_intrinsic'], data_source=data_source)
-                #frame.txt..?             ARKit
+    #path_dict['cam_intrinsic'] -> rgb.txt로 해놓음. cam_instrinsic 값은 고정되어 있어서 len이나 이런것만 보려고 설정해줌.
+    cam_intrinsic_dict = load_camera_intrinsic(path_dict['cam_intrinsic'], data_source=data_source) #TODO:!!!여기 안에서 카메라 번호 선택 필요!!!
+                                                   # frame.txt, rgb.txt            ARKit
     # orginsize와 바꿀 이미지 사이즈 비율 따라 값 조절
+    ori_size ==(640, 480) #TODO : tum 데이터 기본 사이즈가 640 480 바꾸려는 사이즈와 동일해서 일단 혹시 모르니 주석 안하고 이렇게 사이즈 지정해줌
     for k, v in tqdm(cam_intrinsic_dict.items(), desc='Processing camera intrinsics...'):
         cam_intrinsic_dict[k]['K'][0, :] /= (ori_size[0] / size[0])
-        cam_intrinsic_dict[k]['K'][1, :] /= (ori_size[1] / size[1])  #TODO : 드론 데이터셋 이미지 사이즈 확인 필요, ARKit도 사이즈  확인
+        cam_intrinsic_dict[k]['K'][1, :] /= (ori_size[1] / size[1])
     cam_pose_dict = load_camera_pose(path_dict['camera_pose'], data_source=data_source)
+                                        #SyncedPoses.txt             Tum
                                         #SyncedPoses.txt             ARKit
     # save_intrinsics_extrinsics (pose)
     if not os.path.exists(os.path.join(data_path, 'poses')):

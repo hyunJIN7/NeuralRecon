@@ -48,7 +48,7 @@ class DemoDataset(Dataset):
             # load images
             imgs.append(
                 self.read_img(
-                    os.path.join(self.datapath, 'images', '{}.jpg'.format(vid))))
+                    os.path.join(self.datapath, 'rgb', '{}.png'.format(vid)))) #TODO:dataset fromat change, path change
 
         items = {
             'imgs': imgs,

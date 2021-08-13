@@ -35,7 +35,7 @@ parser.add_argument('--data_source',
 args = parser.parse_args()
 update_config(cfg, args)
 
-#TODO : check,  python demo.py --cfg ./config/demo.yaml --data_source 'Tum' 나오긴 나옴
+#TODO : check,  python demo_drone.py --cfg ./config/demo.yaml --data_source 'Tum' 나오긴 나옴
 data_source = cfg.TEST.DATA_SOURCE
 
 if not os.path.exists(os.path.join(cfg.TEST.PATH, 'SyncedPoses.txt')):
