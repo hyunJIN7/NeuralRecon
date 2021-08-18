@@ -66,7 +66,7 @@ save_mesh_scene = SaveScene(cfg)
 logger.info("Start inference..")
 duration = 0.
 gpu_mem_usage = []
-frag_len = len(data_loader)
+frag_len = len(data_loader)  # TODO:여기서 에러 , totensor 진입
 with torch.no_grad():
     for frag_idx, sample in enumerate(tqdm(data_loader)):
         # save mesh if: 1. SAVE_SCENE_MESH and is the last fragment, or

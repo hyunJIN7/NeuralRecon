@@ -18,6 +18,10 @@ def path_parser(root_path, data_source='TagBA'):
     elif data_source == 'Tum':
         path_dict['camera_pose'] = os.path.join(full_path, 'SyncedPoses.txt')
         path_dict['cam_intrinsic'] = os.path.join(full_path, 'rgb.txt')#실제로 rgb.txt엔 timestamp imagenam만 있음
+    elif data_source == 'EuRoc':
+        path_dict['camera_pose'] = os.path.join(full_path, 'SyncedPoses.txt')
+        path_dict['cam_intrinsic'] = os.path.join(full_path, 'cam0/data.csv')  # 실제로 rgb.txt엔 timestamp imagenam만 있음
+
     elif data_source == 'SenseAR':
         path_dict['camera_pose'] = os.path.join(full_path, 'frame_pose.csv')
         path_dict['cam_intrinsic'] = os.path.join(
@@ -61,7 +65,7 @@ def load_camera_pose(cam_pose_dir, use_homogenous=True, data_source='TagBA'):
             ]))
             rot_mat = rotx(np.pi / 2) @ rot_mat #외적으로 생각하면 될듯.....?
             trans = rotx(np.pi / 2) @ trans
-        elif data_source == 'Tum':
+        elif data_source == 'Tum' or data_source == 'EuRoc':
             rot_mat = rot_mat.dot(np.array([
                 [1, 0, 0],
                 [0, -1, 0],
@@ -79,7 +83,7 @@ def load_camera_pose(cam_pose_dir, use_homogenous=True, data_source='TagBA'):
         pose_dict[fid] = trans_mat
 
     print(f"data source: {data_source}")
-    if data_source == 'TagBA' or data_source == 'ARKit' or data_source == 'Tum':
+    if data_source == 'TagBA' or data_source == 'ARKit' or data_source == 'Tum' or data_source == 'EuRoc':
         with open(cam_pose_dir, "r") as f:
             cam_pose_lines = f.readlines()
         for cam_line in cam_pose_lines:
@@ -98,7 +102,7 @@ def load_camera_pose(cam_pose_dir, use_homogenous=True, data_source='TagBA'):
 
     return pose_dict
 
-                            #rgb.txt,  Tum
+                            #cam0/data.csv,  EuRoc
 def load_camera_intrinsic(cam_file, data_source='TagBA'):
     """Load camera parameter from file"""
     assert os.path.isfile(cam_file), "camera info:{} not found".format(cam_file)
@@ -167,13 +171,13 @@ def load_camera_intrinsic(cam_file, data_source='TagBA'):
         cam_intrinsics_candi = [[0, 0, 517.3, 516.5, 318.6, 255.3], [0, 0, 520.9, 521.0, 325.1, 249.7],
                                 [0, 0, 535.4, 539.2, 320.1, 247.6]]
         #TODO: camera_instrinsic 고정이지만 그냥 형식 맞춰준다, 그게 파일에서도 처리하기 더 수월할듯
-        camera_num = 0  # 3번으로 설정
+        camera_num = 2  # 3번으로 설정
         cam_intrinsics = cam_intrinsics_candi[camera_num]
         # 여기 len() 이렇게 할수있는 방법 없나 체크
         i = 0
         for line in cam_intrinsic_lines: # len cnt 위한
             #  float(i) for i in line.split(' ')[0]
-            line_data_list = [float(line.split(' ')[0])]
+            line_data_list = [int(line.split(' ')[0])]
             if len(line_data_list) == 0:
                 continue
             cam_dict = dict()
@@ -190,6 +194,30 @@ def load_camera_intrinsic(cam_file, data_source='TagBA'):
             # cam_intrinsic_dict[str(int(line_data_list[0])).zfill(5)] = cam_dict  # zfill 문자열 앞에 0 채우려고 zfill
             # cam_intrinsic_dict[str(int(line_data_list[1])).zfill(5)] = cam_dict  #zfill 문자열 앞에 0 채우려고 zfill
         return cam_intrinsic_dict
+    #drone data
+    elif data_source == 'EuRoc':
+        with open(cam_file, "r") as f:
+            cam_intrinsic_lines = f.readlines()
+        #                             fu,  fv     cu     cv
+        cam_intrinsics_candi = [[458.654, 457.296, 367.215, 248.375], [458.654, 457.296, 367.215, 248.375]]  # cam0
+        camera_num = 0
+        cam_intrinsics = cam_intrinsics_candi[camera_num]
+
+        cam_intrinsic_dict = dict()
+        for line in cam_intrinsic_lines[1:]:
+            line_data_list = [int(line.split(',')[0])]  #timestamp
+            if len(line_data_list) == 0:
+                continue
+            cam_dict = dict()
+            # frame.txt time, framenum , fx ,fy , cx, cy
+            cam_dict['K'] = np.array([  # cam dict f,c 나온는  3x3 camera metrix
+                [cam_intrinsics[0], 0, cam_intrinsics[2]],
+                [0, cam_intrinsics[1], cam_intrinsics[3]],
+                [0, 0, 1]
+            ], dtype=float)
+            cam_intrinsic_dict[str(line_data_list[0])] = cam_dict
+        return cam_intrinsic_dict
+
     else:
         raise NotImplementedError(
             "Data parsing for source: {} not implemented".format(data_source))

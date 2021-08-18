@@ -47,9 +47,12 @@ class DemoDataset(Dataset):
         for i, vid in enumerate(meta['image_ids']):
             # load images
             imgs.append(
-                self.read_img(
-                    os.path.join(self.datapath, 'rgb', '{}.png'.format(vid)))) #TODO:dataset fromat change, path change
-
+                self.read_img(os.path.join(self.datapath, 'cam0/data', '{}.png'.format(vid)))
+                    .convert('RGB')
+            )
+            #TODO:dataset fromat change, path change
+                                                #tum : rgb
+                                                # drone : cam0/data
         items = {
             'imgs': imgs,
             'intrinsics': intrinsics,
