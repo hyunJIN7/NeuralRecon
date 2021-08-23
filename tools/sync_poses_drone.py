@@ -9,11 +9,12 @@ def sync_intrinsics_and_poses(cam_file, pose_file, out_file):
         cam_intrinsic_lines = f.readlines()
 
     cam_intrinsics = []
-    for line in cam_intrinsic_lines:
+    for line in cam_intrinsic_lines[1:]:
         line_data_list = line.split(',')
         if len(line_data_list) == 0:
             continue
-        cam_intrinsics.append([float(line_data_list[0])])  # timestamp,image.png 중에 timestamp만
+        cam_intrinsics.append([int(line_data_list[0])])  # timestamp,image.png 중에 timestamp만
+                            #TODO: 기존에 float로 하면 부동소수점으로 표현으로 바뀌면서 1.xxe+18 이렇게됨 그래서 int로
 
     """load camera poses"""  # ARPose.txt -> camera pose
     assert os.path.isfile(pose_file), "camera info:{} not found".format(pose_file)
@@ -21,7 +22,7 @@ def sync_intrinsics_and_poses(cam_file, pose_file, out_file):
         cam_pose_lines = f.readlines()
 
     cam_poses = []
-    for line in cam_pose_lines:
+    for line in cam_pose_lines[1:]:
         line_data_list = line.split(',')
         if len(line_data_list) == 0:
             continue
@@ -48,7 +49,7 @@ def sync_intrinsics_and_poses(cam_file, pose_file, out_file):
         cam_pose = cam_poses[ip][:4] + cam_poses[ip][5:8] + [cam_poses[ip][4]]
         line = [str(a) for a in cam_pose]
         # line = [str(a) for a in cam_poses[ip]]
-        line[0] = str(i)
+        line[0] = str(cam_intrinsics[i][0])
         lines.append(' '.join(line) + '\n')
 
     dirname = os.path.dirname(out_file)

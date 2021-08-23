@@ -1,14 +1,18 @@
+import glob
 import os
 import pickle
 from tqdm import tqdm
-from tools.sync_poses_drone import *
+import cv2
+
 from tools.kp_reproject import *
-# from tools.sync_poses_drone import *
+from tools.sync_poses import *
+
 # params
-project_path = '/home/hyunjin/PycharmProjects/NeuralRecon/data/rgbd_dataset_freiburg1_room'
-#project_path = '/home/hyunjin/PycharmProjects/NeuralRecon/data/MH_02_easy/mav0'
-            #mav0 까지 들어온다 치고        , 'EuRoc'->drone   cameranum=1 넣을지말지
-def process_data(data_path, data_source='Tum', window_size=9, min_angle=15, min_distance=0.1, ori_size=(1920, 1440), size=(640, 480)):
+project_path = '/home/sunjiaming/Repositories/NeuralFusion/data/neucon_demo/phone_room_0'
+# project_path = '/home/sunjiaming/Repositories/NeuralFusion/data/neucon_demo/conf_0'
+
+# data_path : /home/hyunjin/PycharmProjects/NeuralRecon/data/MH_01_easy/mav0
+def process_data(data_path, data_source='EuRoc', window_size=9, min_angle=15, min_distance=0.1, ori_size=(752, 480), size=(640, 480)):
     # save image
     # print('Extract images from video...')
     # video_path = os.path.join(data_path, 'Frames.m4v')
@@ -16,25 +20,19 @@ def process_data(data_path, data_source='Tum', window_size=9, min_angle=15, min_
     # if not os.path.exists(image_path):
     #     os.mkdir(image_path)
     # extract_frames(video_path, out_folder=image_path, size=size)
-    #이미지 data path
-    if data_source == 'Tum':
-        image_path = os.path.join(data_path, 'rgb')  # Tum
-    elif data_source == 'EuRoc':
-        image_path = os.path.join(data_path, 'cam0/data') #EuRoc
+    image_path = os.path.join(data_path, 'cam0/data')  #'/home/hyunjin/PycharmProjects/NeuralRecon/data/MH_01_easy/mav0/cam0/data'
 
 
-    #TODO:일단 다 TUM 기준으로 코드 작성하겠다. 형식이 다르니까 따로 분리해야하나 일단 다 하고 생각
     # load intrin and extrin
-    print('Load intrinsics and extrinsics')    #원래는 첫번쨰에 frame.txt 보내야하지만 rgb.txt로 보낸다.
-    sync_intrinsics_and_poses(os.path.join(data_path, 'rgb.txt'), os.path.join(data_path, 'groundtruth.txt'),
-                              os.path.join(data_path, 'SyncedPoses.txt'))
-    # sync_intrinsics_and_poses(os.path.join(data_path, 'Frames.txt'), os.path.join(data_path, 'ARposes.txt'),
-    #                         os.path.join(data_path, 'SyncedPoses.txt'))
+    print('Load intrinsics and extrinsics')
+    sync_intrinsics_and_poses(os.path.join(data_path, 'cam0/data.csv'), os.path.join(data_path, 'state_groundtruth_estimate0/data.csv'),
+                            os.path.join(data_path, 'SyncedPoses.txt'))
 
     path_dict = path_parser(data_path, data_source=data_source)
     cam_intrinsic_dict = load_camera_intrinsic(
         path_dict['cam_intrinsic'], data_source=data_source)
-                #frame.txt..?             ARKit
+                #cam0/data.csv             ARKit
+
     # orginsize와 바꿀 이미지 사이즈 비율 따라 값 조절
     for k, v in tqdm(cam_intrinsic_dict.items(), desc='Processing camera intrinsics...'):
         cam_intrinsic_dict[k]['K'][0, :] /= (ori_size[0] / size[0])
@@ -85,6 +83,35 @@ def process_data(data_path, data_source='Tum', window_size=9, min_angle=15, min_
                     all_ids.append(ids)  #all_ids에 ids 묶음 별로 넣어버려
                     ids = []
                     count = 0
+
+
+    #colmap key frames
+    if not os.path.exists(os.path.join(data_path, 'keyframes')):
+        os.mkdir(os.path.join(data_path, 'keyframes'))
+    for ids in all_ids :
+        for id in ids:
+            for file in image_path:
+                file_id = file.split('.')[0]
+                if file_id == id :
+                    file_name = file_id+'png'
+                    cv2.imwrite(file_name,file)
+
+
+    #cextract key frames for colmap
+    images = glob.glob(image_path + '/*.jpg')
+    #images = [file for file in image_path+'/']  #if file.endswith('.jpg')
+    if not os.path.exists(os.path.join(data_path, 'keyframes')):
+        os.mkdir(os.path.join(data_path, 'keyframes'))
+    for ids in all_ids:
+        for i in ids:
+            for file in images:
+                image = cv2.imread(file)
+                file_id = (file.split('/')[-1]).split('.')[0]
+                if file_id == i:
+                    file_name = file_id + '.png'
+                    cv2.imwrite(data_path+'/keyframes/'+file_name, image)
+                    break
+
 
     # save fragments
     #keyframe으로 select된

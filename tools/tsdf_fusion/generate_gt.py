@@ -212,7 +212,6 @@ def process_with_single_worker(args, scannet_files):
         color_all = {}
 
         if args.dataset == 'scannet':
-            #print('scene ::::  ',  scene )
             #TODO : 지우기
             n_imgs = len(os.listdir(os.path.join(args.data_path, scene, 'images'))) #'color'
             intrinsic_dir = os.path.join(args.data_path, scene, 'intrinsic', 'intrinsic_depth.txt')   #이게 뭘까
@@ -295,4 +294,4 @@ if __name__ == "__main__":
 
     if args.dataset == 'scannet':
         generate_pkl(args)
-#  python tools/tsdf_fusion/generate_gt.py --save_name all_tsdf_9 --window_size 9 --data_path /home/hyunjin/PycharmProjects/NeuralRecon/data/neucon_demodata_b5f1
+#python tools/tsdf_fusion/generate_gt.py --save_name all_tsdf_9 --window_size 9 --data_path /home/hyunjin/PycharmProjects/NeuralRecon/data/neucon_demodata_b5f1

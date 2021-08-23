@@ -189,7 +189,7 @@ def load_camera_intrinsic(cam_file, data_source='TagBA'):
 
             #TODO: syncpose엔 0,1,2 이렇게 들어가 있음. 나중에 번호 안맞는다하면 line_data_list[1] 대신 i 이렇게 따로 만들어서 넣거나 그전에 맞춰주거나 해야할듯
             #TODO: 00000대신 timestamp로
-            cam_intrinsic_dict[str( format(line_data_list[0], ".6f") )] = cam_dict
+            cam_intrinsic_dict[str( format(line_data_list[0], ".6f"))] = cam_dict
             i+=1
             # cam_intrinsic_dict[str(int(line_data_list[0])).zfill(5)] = cam_dict  # zfill 문자열 앞에 0 채우려고 zfill
             # cam_intrinsic_dict[str(int(line_data_list[1])).zfill(5)] = cam_dict  #zfill 문자열 앞에 0 채우려고 zfill

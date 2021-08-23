@@ -1,6 +1,8 @@
+import glob
 import os
 import pickle
 from tqdm import tqdm
+import cv2
 
 from tools.kp_reproject import *
 from tools.sync_poses import *
@@ -10,26 +12,24 @@ project_path = '/home/sunjiaming/Repositories/NeuralFusion/data/neucon_demo/phon
 # project_path = '/home/sunjiaming/Repositories/NeuralFusion/data/neucon_demo/conf_0'
 
 # data_path : /home/hyunjin/PycharmProjects/NeuralRecon/data/MH_01_easy/mav0
-def process_data(data_path, data_source='EuRoc', window_size=9, min_angle=15, min_distance=0.1, ori_size=(752, 480), size=(640, 480)):
+def process_data(data_path, data_source='ARKit', window_size=9, min_angle=15, min_distance=0.1, ori_size=(1920, 1440), size=(640, 480)):
     # save image
-    # print('Extract images from video...')
-    # video_path = os.path.join(data_path, 'Frames.m4v')
-    # image_path = os.path.join(data_path, 'images')
-    # if not os.path.exists(image_path):
-    #     os.mkdir(image_path)
-    # extract_frames(video_path, out_folder=image_path, size=size)
-    image_path = os.path.join(data_path, 'rgb') # '/home/hyunjin/PycharmProjects/NeuralRecon/data/MH_01_easy/mav0/cam0/data'
-
+    print('Extract images from video...')
+    video_path = os.path.join(data_path, 'Frames.m4v')
+    image_path = os.path.join(data_path, 'images')
+    if not os.path.exists(image_path):
+        os.mkdir(image_path)
+    extract_frames(video_path, out_folder=image_path, size=size)
 
     # load intrin and extrin
     print('Load intrinsics and extrinsics')
-    sync_intrinsics_and_poses(os.path.join(data_path, 'cam0/data.csv'), os.path.join(data_path, 'state_groundtruth_estimate0/data.csv'),
+    sync_intrinsics_and_poses(os.path.join(data_path, 'Frames.txt'), os.path.join(data_path, 'ARposes.txt'),
                             os.path.join(data_path, 'SyncedPoses.txt'))
 
     path_dict = path_parser(data_path, data_source=data_source)
     cam_intrinsic_dict = load_camera_intrinsic(
         path_dict['cam_intrinsic'], data_source=data_source)
-                #cam0/data.csv             ARKit
+                #frame.txt..?             ARKit
 
     # orginsize와 바꿀 이미지 사이즈 비율 따라 값 조절
     for k, v in tqdm(cam_intrinsic_dict.items(), desc='Processing camera intrinsics...'):
@@ -81,6 +81,24 @@ def process_data(data_path, data_source='EuRoc', window_size=9, min_angle=15, mi
                     all_ids.append(ids)  #all_ids에 ids 묶음 별로 넣어버려
                     ids = []
                     count = 0
+
+    #colmap key frames
+    images = sorted(glob.glob(image_path + '/*.jpg'))
+    #images = [file for file in image_path+'/']  #if file.endswith('.jpg')
+    if not os.path.exists(os.path.join(data_path, data_path.split('/')[-1] + '_keyframes')):
+        os.mkdir(os.path.join(data_path,  data_path.split('/')[-1] + '_keyframes'))
+        file_index = 0
+        for ids in all_ids:
+            for i in ids:
+                while True:
+                    image = cv2.imread(images[file_index])
+                    file_id = (images[file_index].split('/')[-1]).split('.')[0]
+                    file_index += 1
+                    if file_id == i:
+                        file_name = file_id + '.png'
+                        cv2.imwrite(data_path + '/'+data_path.split('/')[-1]+'_keyframes/' + file_name, image)
+                        break
+
 
     # save fragments
     #keyframe으로 select된
