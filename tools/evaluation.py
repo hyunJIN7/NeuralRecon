@@ -16,7 +16,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import glob
 import sys
 
 sys.path.append('.')
@@ -45,9 +45,13 @@ def parse_args():
     parser.add_argument('--max_depth', default=10., type=float,
                         help='mask out large depth values since they are noisy')
     parser.add_argument("--data_path", metavar="DIR",
-                        help="path to dataset", default='./data/ios_logger')  #TODO 잠시 바꿈   ./data/scannet/scans_test
+                        help="path to dataset", default='/home/hyunjin/PycharmProjects/NeuralRecon/data')
+                                                        #/home/hyunjin/PycharmProjects/NeuralRecon/data/scannet/scans_test
+                                                        #/home/hyunjin/PycharmProjects/NeuralRecon/data
+
     parser.add_argument("--gt_path", metavar="DIR",
-                        help="path to raw dataset", default='/data/ios_logger')  #  /data/scannet/scannet/scans_test
+                        help="path to raw dataset", default='/home/hyunjin/PycharmProjects/NeuralRecon/data_gt')
+                                                            #/data/scannet/scannet/scans_test
 
     # ray config
     parser.add_argument('--n_proc', type=int, default=2, help='#processes launched to process scenes.')
@@ -59,7 +63,8 @@ def parse_args():
 
 args = parse_args()
 
-
+# python tools/evaluation.py --model ./results/scene_scannet_release_fusion_eval_47 --n_proc 16
+# python tools/evaluation.py --model ./results/scene_scannet_release_fusion_eval_47
 class Renderer():
     """OpenGL mesh renderer
 
@@ -79,7 +84,7 @@ class Renderer():
         cam = pyrender.IntrinsicsCamera(cx=intrinsics[0, 2], cy=intrinsics[1, 2],
                                         fx=intrinsics[0, 0], fy=intrinsics[1, 1])
         self.scene.add(cam, pose=self.fix_pose(pose))
-        return self.renderer.render(self.scene)  # , self.render_flags)
+        return self.renderer.render(self.scene)  # , self.render_flags)  #error6,7
 
     def fix_pose(self, pose):
         # 3D Rotation about the x-axis.
@@ -99,16 +104,18 @@ class Renderer():
     def delete(self):
         self.renderer.delete()
 
-
+# scene, temp = process(info_file, i, len(info_files))
 def process(scene, total_scenes_index, total_scenes_count):
     save_path = args.model
     width, height = 640, 480
 
-    test_framid = os.listdir(os.path.join(args.data_path, scene, 'images'))  #TODO:잠시 바꿈 'color'
+    test_framid = os.listdir(os.path.join(args.data_path, scene, 'images'))  #color
     n_imgs = len(test_framid)
-    intrinsic_dir = os.path.join(args.data_path, scene, 'intrinsic', 'intrinsic_depth.txt')
+    intrinsic_dir = os.path.join(args.data_path, scene, 'intrinsics', '00000.txt')  #TODO : 'intrinsic','intrinsic_depth.txt'   가 그냥 instrinsic???
     cam_intr = np.loadtxt(intrinsic_dir, delimiter=' ')[:3, :3]
-    dataset = ScanNetDataset(n_imgs, scene, args.data_path, args.max_depth)
+    #dataset = ScanNetDataset(n_imgs, scene, args.data_path, args.max_depth)
+    dataset = ARKitDataset(n_imgs, scene, args.data_path, args.max_depth)
+
 
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=None, collate_fn=collate_fn,
                                              batch_sampler=None, num_workers=args.loader_num_workers)
@@ -123,18 +130,21 @@ def process(scene, total_scenes_index, total_scenes_count):
         sdf_trunc=3 * float(voxel_size) / 100,
         color_type=o3d.pipelines.integration.TSDFVolumeColorType.RGB8)
 
+    save_path = '/home/hyunjin/PycharmProjects/NeuralRecon/results/scene_demo_checkpoints_fusion_eval_47'
     mesh_file = os.path.join(save_path, '%s.ply' % scene.replace('/', '-'))
     mesh = trimesh.load(mesh_file, process=False)
     # mesh renderer
     renderer = Renderer()
     mesh_opengl = renderer.mesh_opengl(mesh)
 
+    #에러3,4
+
     for i, (cam_pose, depth_trgt, _) in enumerate(dataloader):
         print(total_scenes_index, total_scenes_count, scene, i, len(dataloader))
         if cam_pose[0][0] == np.inf or cam_pose[0][0] == -np.inf or cam_pose[0][0] == np.nan:
             continue
 
-        _, depth_pred = renderer(height, width, cam_intr, cam_pose, mesh_opengl)
+        _, depth_pred = renderer(height, width, cam_intr, cam_pose, mesh_opengl)  #error6
 
         temp = eval_depth(depth_pred, depth_trgt)
         if i == 0:
@@ -179,11 +189,12 @@ def process(scene, total_scenes_index, total_scenes_count):
 @ray.remote(num_cpus=args.num_workers + 1, num_gpus=(1 / args.n_proc))
 def process_with_single_worker(info_files):
     metrics = {}
-    for i, info_file in enumerate(info_files):
+    for i, info_file in enumerate(info_files):  #error 3,4
         scene, temp = process(info_file, i, len(info_files))
         if temp is not None:
             metrics[scene] = temp
     return metrics
+
 
 
 def split_list(_list, n):
@@ -191,6 +202,20 @@ def split_list(_list, n):
     ret = [[] for _ in range(n)]
     for idx, item in enumerate(_list):
         ret[idx % n].append(item)
+
+
+    #_list에 있는 목록들의 depth 이미지 폴더 따로 만들기
+    for gt_list in _list:
+        gt_path = os.path.join(args.data_path+'_gt', gt_list+'_gt')
+        images = sorted(glob.glob(gt_path + '/depth_*')) #depth 파일만 가져와 sort
+        depth_path = os.path.join(args.data_path, gt_list, 'depth')
+        if not os.path.exists(depth_path):
+            os.mkdir(depth_path)
+            for i, info_file in enumerate(images):
+                image = cv2.imread(info_file)
+                file_name = ((info_file.split('/')[-1]).split('_')[1])
+                cv2.imwrite(depth_path+'/' + file_name , image)
+
     return ret
 
 
@@ -205,9 +230,9 @@ def main():
 
     ray_worker_ids = []
     for w_idx in range(all_proc):
-        ray_worker_ids.append(process_with_single_worker.remote(info_files[w_idx]))
+        ray_worker_ids.append(process_with_single_worker.remote(info_files[w_idx]))  #process 도 진입
 
-    results = ray.get(ray_worker_ids)
+    results = ray.get(ray_worker_ids)  # 에러2
 
     metrics = {}
     for r in results:

@@ -19,7 +19,7 @@ def process_data(data_path, data_source='ARKit', window_size=9, min_angle=15, mi
     image_path = os.path.join(data_path, 'images')
     if not os.path.exists(image_path):
         os.mkdir(image_path)
-    extract_frames(video_path, out_folder=image_path, size=size)
+        extract_frames(video_path, out_folder=image_path, size=size) #조건문 안으로 넣음
 
     # load intrin and extrin
     print('Load intrinsics and extrinsics')
@@ -82,7 +82,8 @@ def process_data(data_path, data_source='ARKit', window_size=9, min_angle=15, mi
                     ids = []
                     count = 0
 
-    #colmap key frames
+    #to extract key frames for colmap
+    print('Extract key frames for colmap...')
     images = sorted(glob.glob(image_path + '/*.jpg'))
     #images = [file for file in image_path+'/']  #if file.endswith('.jpg')
     if not os.path.exists(os.path.join(data_path, data_path.split('/')[-1] + '_keyframes')):
@@ -98,6 +99,20 @@ def process_data(data_path, data_source='ARKit', window_size=9, min_angle=15, mi
                         file_name = file_id + '.png'
                         cv2.imwrite(data_path + '/'+data_path.split('/')[-1]+'_keyframes/' + file_name, image)
                         break
+
+    #data_path.split('/')[-1]
+    # depth 이미지 폴더 따로 만들기
+    # print('Extract depth image...')
+    # gt_path = os.path.join(data_path.split('/')[-2] + '_gt', data_path.split('/')[-1] + '_gt')
+    # dp_images = sorted(glob.glob(gt_path + '/depth_*'))  # depth 파일만 가져와 sort
+    # depth_path = os.path.join(data_path, data_path.split('/')[-1], 'depth')
+    # if not os.path.exists(depth_path):
+    #     os.mkdir(depth_path)
+    #     for i, info_file in enumerate(dp_images):
+    #         image = cv2.imread(info_file)
+    #         file_name = ((info_file.split('/')[-1]).split('_')[1])
+    #         cv2.imwrite(depth_path + '/' + file_name, image)
+
 
 
     # save fragments
