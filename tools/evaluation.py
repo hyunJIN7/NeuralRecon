@@ -43,7 +43,7 @@ def parse_args():
     parser.add_argument("--model", required=True, metavar="FILE",
                         help="path to checkpoint")
     parser.add_argument('--max_depth', default=10., type=float,
-                        help='mask out large depth values since they are noisy')
+                        help='mask out large depth values since they are noisy')  # 큰 값들은 노이즈 있어 마스크 씌움
     parser.add_argument("--data_path", metavar="DIR",
                         help="path to dataset", default='/home/hyunjin/PycharmProjects/NeuralRecon/data')
                                                         #/home/hyunjin/PycharmProjects/NeuralRecon/data/scannet/scans_test
@@ -133,6 +133,7 @@ def process(scene, total_scenes_index, total_scenes_count):
     save_path = '/home/hyunjin/PycharmProjects/NeuralRecon/results/scene_demo_checkpoints_fusion_eval_47'
     mesh_file = os.path.join(save_path, '%s.ply' % scene.replace('/', '-'))
     mesh = trimesh.load(mesh_file, process=False)
+
     # mesh renderer
     renderer = Renderer()
     mesh_opengl = renderer.mesh_opengl(mesh)

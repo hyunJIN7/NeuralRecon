@@ -15,14 +15,14 @@ class NeuralRecon(nn.Module):
     def __init__(self, cfg):
         super(NeuralRecon, self).__init__()
         self.cfg = cfg.MODEL
-        alpha = float(self.cfg.BACKBONE2D.ARC.split('-')[-1])
+        alpha = float(self.cfg.BACKBONE2D.ARC.split('-')[-1])  #이 연산이 대체 뭘까
         # other hparams
-        self.pixel_mean = torch.Tensor(cfg.MODEL.PIXEL_MEAN).view(-1, 1, 1)
+        self.pixel_mean = torch.Tensor(cfg.MODEL.PIXEL_MEAN).view(-1, 1, 1)  #shpe(-1,1,1) 이렇게 만든다.
         self.pixel_std = torch.Tensor(cfg.MODEL.PIXEL_STD).view(-1, 1, 1)
         self.n_scales = len(self.cfg.THRESHOLDS) - 1
 
         # networks
-        self.backbone2d = MnasMulti(alpha)
+        self.backbone2d = MnasMulti(alpha)  #backbone : MNASNet +  Feature Pyramid Network
         self.neucon_net = NeuConNet(cfg.MODEL)
         # for fusing to global volume
         self.fuse_to_global = GRUFusion(cfg.MODEL, direct_substitute=True)
@@ -71,7 +71,7 @@ class NeuralRecon(nn.Module):
         '''
         inputs = tocuda(inputs)
         outputs = {}
-        imgs = torch.unbind(inputs['imgs'], 1)
+        imgs = torch.unbind(inputs['imgs'], 1) #tensor 차원 제거 ,주어진 dim 따라 잘린 tuple return
 
         # image feature extraction
         # in: images; out: feature maps

@@ -60,8 +60,8 @@ class ARKitDataset(torch.utils.data.Dataset):
         """
         self.n_imgs = n_imgs
         self.scene = scene
-        self.data_path = data_path
-        self.max_depth = max_depth
+        self.data_path = data_path  # /data 까지인듯
+        self.max_depth = max_depth  #default 10 , 큰 값들은 노이즈 있어 마스크 씌움
         if id_list is None:
             self.id_list = [i for i in range(n_imgs)]
         else:
@@ -76,10 +76,9 @@ class ARKitDataset(torch.utils.data.Dataset):
             dict of meta data and images for a single frame
         """
         id = self.id_list[id]
-        cam_pose = np.loadtxt(os.path.join(self.data_path, self.scene, "poses", str(id).zfill(5) + ".txt"), delimiter=' ')
-                                                                        #pose
-
         # Read depth image and camera pose
+        cam_pose = np.loadtxt(os.path.join(self.data_path, self.scene, "poses", str(id).zfill(5) + ".txt"), delimiter=' ')
+
         # print("shape:::: ", cv2.imread(os.path.join(self.data_path, self.scene, "depth", str(id).zfill(5) + ".png"), -1).shape)
         depth_im = cv2.imread(os.path.join(self.data_path, self.scene, "depth", str(id).zfill(5) + ".png"), -1).astype(np.float32)
                                                                # -1: IMREAD_UNCHAGED, 이미찌 파일 Alpha chnnel까지 포함해 읽기
@@ -89,7 +88,7 @@ class ARKitDataset(torch.utils.data.Dataset):
         # Read RGB image
         color_image = cv2.cvtColor(cv2.imread(os.path.join(self.data_path, self.scene, "images", str(id).zfill(5) + ".jpg")),  # color , .jpg
                                    cv2.COLOR_BGR2RGB)
-        #color_image = cv2.resize(color_image, (depth_im.shape[1], depth_im.shape[0]), interpolation=cv2.INTER_AREA)
+        color_image = cv2.resize(color_image, (depth_im.shape[1], depth_im.shape[0]), interpolation=cv2.INTER_AREA)
 
         return cam_pose, depth_im, color_image
         #depth_im
