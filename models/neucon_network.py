@@ -21,9 +21,9 @@ class NeuConNet(nn.Module):
     def __init__(self, cfg):
         super(NeuConNet, self).__init__()
         self.cfg = cfg
-        self.n_scales = len(cfg.THRESHOLDS) - 1
+        self.n_scales = len(cfg.THRESHOLDS) - 1 #3-1 = 2
 
-        alpha = int(self.cfg.BACKBONE2D.ARC.split('-')[-1]) #이 연산이 대체 뭘까
+        alpha = int(self.cfg.BACKBONE2D.ARC.split('-')[-1])
         ch_in = [80 * alpha + 1, 96 + 40 * alpha + 2 + 1, 48 + 24 * alpha + 2 + 1, 24 + 24 + 2 + 1]
         channels = [96, 48, 24]
 
@@ -60,7 +60,7 @@ class NeuConNet(nn.Module):
             occ_target = inputs['occ_list'][scale]
             coords_down = coords.detach().clone().long()
             # 2 ** scale == interval
-            coords_down[:, 1:] = (coords[:, 1:] // 2 ** scale)
+            coords_down[:, 1:] = (coords[:, 1:] // 2 ** scale) # // : 대응되는 element에 / 연산
             tsdf_target = tsdf_target[coords_down[:, 0], coords_down[:, 1], coords_down[:, 2], coords_down[:, 3]]
             occ_target = occ_target[coords_down[:, 0], coords_down[:, 1], coords_down[:, 2], coords_down[:, 3]]
             return tsdf_target, occ_target
@@ -104,30 +104,30 @@ class NeuConNet(nn.Module):
             'tsdf_occ_loss_X':         (Tensor), multi level loss
         }
         '''
-        bs = features[0][0].shape[0]
+        bs = features[0][0].shape[0] #B 값 이게 뭐지 batch size?
         pre_feat = None
         pre_coords = None
         loss_dict = {}
         # ----coarse to fine----
         for i in range(self.cfg.N_LAYER):
             interval = 2 ** (self.n_scales - i)
-            scale = self.n_scales - i
+            scale = self.n_scales - i #scale : thershold size 3
 
-            if i == 0:
+            if i == 0:#voxel
                 # ----generate new coords----
-                coords = generate_grid(self.cfg.N_VOX, interval)[0]
+                coords = generate_grid(self.cfg.N_VOX, interval)[0] # Create voxel gri, (3, dx*dy*dz)
                 up_coords = []
                 for b in range(bs):
                     up_coords.append(torch.cat([torch.ones(1, coords.shape[-1]).to(coords.device) * b, coords]))
-                up_coords = torch.cat(up_coords, dim=1).permute(1, 0).contiguous()
+                up_coords = torch.cat(up_coords, dim=1).permute(1, 0).contiguous() #가로로 붙인 후 차원 0,1순서 변경
             else:
                 # ----upsample coords----
                 up_feat, up_coords = self.upsample(pre_feat, pre_coords, interval)
 
             # ----back project----
-            feats = torch.stack([feat[scale] for feat in features])
-            KRcam = inputs['proj_matrices'][:, :, scale].permute(1, 0, 2, 3).contiguous()
-            volume, count = back_project(up_coords, inputs['vol_origin_partial'], self.cfg.VOXEL_SIZE, feats,
+            feats = torch.stack([feat[scale] for feat in features]) #feat 뒤에꺼부터??.....feat
+            KRcam = inputs['proj_matrices'][:, :, scale].permute(1, 0, 2, 3).contiguous()  #projection matrix :   (batch size, number of views, number of scales, 4, 4)
+            volume, count = back_project(up_coords, inputs['vol_origin_partial'], self.cfg.VOXEL_SIZE, feats,  # origin of the partial voxel volume (xyz position of voxel (0, 0, 0))
                                          KRcam)
             grid_mask = count > 1
 
@@ -137,8 +137,8 @@ class NeuConNet(nn.Module):
             else:
                 feat = volume
 
-            if not self.cfg.FUSION.FUSION_ON:
-                tsdf_target, occ_target = self.get_target(up_coords, inputs, scale)
+            if not self.cfg.FUSION.FUSION_ON: #default False
+                tsdf_target, occ_target = self.get_target(up_coords, inputs, scale) # scale(inteval) down 시킴
 
             # ----convert to aligned camera coordinate----
             r_coords = up_coords.detach().clone().float()
