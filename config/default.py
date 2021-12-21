@@ -22,7 +22,7 @@ _C.DISTRIBUTED = False
 # train
 _C.TRAIN = CN()
 _C.TRAIN.PATH = ''
-_C.TRAIN.EPOCHS = 1#40
+_C.TRAIN.EPOCHS = 1 #40
 _C.TRAIN.LR = 0.001
 _C.TRAIN.LREPOCHS = '12,24,36:2'
 _C.TRAIN.WD = 0.0
@@ -38,7 +38,7 @@ _C.TEST = CN()
 _C.TEST.PATH = ''
 _C.TEST.N_VIEWS = 5
 _C.TEST.N_WORKERS = 4
-_C.TEST.DATA_SOURCE = 'Tum'  #TODO : check
+# _C.TEST.DATA_SOURCE = 'Tum'
 
 
 # model

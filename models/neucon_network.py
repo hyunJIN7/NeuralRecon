@@ -11,7 +11,7 @@ from utils import apply_log_transform
 from .gru_fusion import GRUFusion
 from ops.back_project import back_project
 from ops.generate_grids import generate_grid
-
+from torch.utils.tensorboard import SummaryWriter
 
 class NeuConNet(nn.Module):
     '''
@@ -21,11 +21,12 @@ class NeuConNet(nn.Module):
     def __init__(self, cfg):
         super(NeuConNet, self).__init__()
         self.cfg = cfg
-        self.n_scales = len(cfg.THRESHOLDS) - 1 #3-1 = 2
+        self.n_scales = len(cfg.THRESHOLDS) - 1  #3-1 = 2
 
         alpha = int(self.cfg.BACKBONE2D.ARC.split('-')[-1])
-        ch_in = [80 * alpha + 1, 96 + 40 * alpha + 2 + 1, 48 + 24 * alpha + 2 + 1, 24 + 24 + 2 + 1]
-        channels = [96, 48, 24]
+        ch_in = [80 * alpha + 1, 96 + 40 * alpha + 2 + 1, 48 + 24 * alpha + 2 + 1, 24 + 24 + 2 + 1]  #[81,139,75,51]
+        channels = [96, 48, 24] #grufusion으로 들어가서 fusion network sp_convs에 추가됨.
+                                # channel만큼 occ, tdsf_pre 만들어짐
 
         if self.cfg.FUSION.FUSION_ON:
             # GRU Fusion
@@ -37,7 +38,7 @@ class NeuConNet(nn.Module):
         self.occ_preds = nn.ModuleList()
         for i in range(len(cfg.THRESHOLDS)):
             self.sp_convs.append(
-                SPVCNN(num_classes=1, in_channels=ch_in[i],
+                SPVCNN(num_classes=1, in_channels=ch_in[i],   #이게 MLP인가봐!!!!!!
                        pres=1,
                        cr=1 / 2 ** i,
                        vres=self.cfg.VOXEL_SIZE * 2 ** (self.n_scales - i),
@@ -110,25 +111,27 @@ class NeuConNet(nn.Module):
         loss_dict = {}
         # ----coarse to fine----
         for i in range(self.cfg.N_LAYER):
-            interval = 2 ** (self.n_scales - i)
-            scale = self.n_scales - i #scale : thershold size 3
+            interval = 2 ** (self.n_scales - i)     #2^2 ,2^1, 2^0
+            scale = self.n_scales - i #scale : thershold size 3 - 1
 
             if i == 0:#voxel
                 # ----generate new coords----
-                coords = generate_grid(self.cfg.N_VOX, interval)[0] # Create voxel gri, (3, dx*dy*dz)
+                coords = generate_grid(self.cfg.N_VOX, interval)[0] # Create voxel gri, (1,3, dx*dy*dz)에서 (3,13824)
                 up_coords = []
                 for b in range(bs):
                     up_coords.append(torch.cat([torch.ones(1, coords.shape[-1]).to(coords.device) * b, coords]))
-                up_coords = torch.cat(up_coords, dim=1).permute(1, 0).contiguous() #가로로 붙인 후 차원 0,1순서 변경
+                                                        #cat ((1,13824)*b , (3,13824) )
+                up_coords = torch.cat(up_coords, dim=1).permute(1, 0).contiguous()  # 가로로 붙인 후 차원 0,1순서 변경
             else:
                 # ----upsample coords----
                 up_feat, up_coords = self.upsample(pre_feat, pre_coords, interval)
 
             # ----back project----
-            feats = torch.stack([feat[scale] for feat in features]) #feat 뒤에꺼부터??.....feat
-            KRcam = inputs['proj_matrices'][:, :, scale].permute(1, 0, 2, 3).contiguous()  #projection matrix :   (batch size, number of views, number of scales, 4, 4)
-            volume, count = back_project(up_coords, inputs['vol_origin_partial'], self.cfg.VOXEL_SIZE, feats,  # origin of the partial voxel volume (xyz position of voxel (0, 0, 0))
-                                         KRcam)
+            feats = torch.stack([feat[scale] for feat in features])  #feat[n_scale - i] : 해당 out feature 3,2,1 중
+            KRcam = inputs['proj_matrices'][:, :, scale].permute(1, 0, 2, 3).contiguous()  #proj_matrix : (batch size, number of views, number of scales, 4, 4)
+            volume, count = back_project(up_coords, inputs['vol_origin_partial'], self.cfg.VOXEL_SIZE, feats, KRcam)
+            # origin of the partial voxel volume (xyz position of voxel (0, 0, 0))
+
             grid_mask = count > 1
 
             # ----concat feature from last stage----
@@ -158,7 +161,7 @@ class NeuConNet(nn.Module):
             feat = self.sp_convs[i](point_feat)
 
             # ----gru fusion----
-            if self.cfg.FUSION.FUSION_ON:
+            if self.cfg.FUSION.FUSION_ON:                                   #Hlt-1     Glt
                 up_coords, feat, tsdf_target, occ_target = self.gru_fusion(up_coords, feat, inputs, i)
                 if self.cfg.FUSION.FULL:
                     grid_mask = torch.ones_like(feat[:, 0]).bool()

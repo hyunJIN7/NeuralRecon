@@ -13,7 +13,7 @@ def _round_to_multiple_of(val, divisor, round_up_bias=0.9):
     return new_val if new_val >= round_up_bias * val else new_val + divisor
 
 
-def _get_depths(alpha):
+def _get_depths(alpha): #back bone shape에 사용
     """ Scales tensor depths as in reference MobileNet code, prefers rouding up
     rather than down. """  # MobileNet 코드에서와 같이 텐서 깊이 스케일링 , 내림보단 반올림 하는 것 좋다.
     depths = [32, 16, 24, 40, 80, 96, 192, 320]
@@ -60,6 +60,7 @@ class MnasMulti(nn.Module):
         self.conv1 = MNASNet.layers._modules['9'] #modueles -> OrderDic : 입력된 순서 기억하는 딕셔너리
         self.conv2 = MNASNet.layers._modules['10']
 
+        #depths = [32, 16, 24, 40, 80, 96, 192, 320]
                         #in_chan(n,c,h,w), out_chan, kernel_size
         self.out1 = nn.Conv2d(depths[4], depths[4], 1, bias=False)   # 80 X 80
         self.out_channels = [depths[4]]  # 80  , [32, 16, 24, 40, 80, 96, 192, 320]
@@ -85,6 +86,8 @@ class MnasMulti(nn.Module):
         outputs.append(out)
 
         intra_feat = F.interpolate(intra_feat, scale_factor=2, mode="nearest") + self.inner1(conv1)
+        #tt1 = F.interpolate(intra_feat, scale_factor=2, mode="nearest")
+        #tt2 = self.inner1(conv1)
         out = self.out2(intra_feat)
         outputs.append(out)
 
@@ -92,4 +95,4 @@ class MnasMulti(nn.Module):
         out = self.out3(intra_feat)
         outputs.append(out)
 
-        return outputs[::-1]
+        return outputs[::-1] #out 순서 뒤집기 out3,out2,out1

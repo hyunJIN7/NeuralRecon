@@ -12,7 +12,9 @@ from tools.simple_loader import *
 
 torch.multiprocessing.set_sharing_strategy('file_system')
 
+#python tools/tsdf_fusion/generate_gt.py --data_path /home/hyunjin/PycharmProjects/NeuralRecon/data/scannet --save_name all_tsdf_9 --window_size 9
 
+#python tools/tsdf_fusion/generate_gt.py --test --data_path data/scannet --save_name all_tsdf_9 --window_size 9
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Fuse ground truth tsdf')
@@ -212,11 +214,11 @@ def process_with_single_worker(args, scannet_files):
         color_all = {}
 
         if args.dataset == 'scannet':
-            n_imgs = len(os.listdir(os.path.join(args.data_path, scene, 'color'))) #'color'
-            intrinsic_dir = os.path.join(args.data_path, scene, 'intrinsic', 'intrinsic_depth.txt')   #이게 뭘까
+            n_imgs = len(os.listdir(os.path.join(args.data_path, scene, 'color')))
+            intrinsic_dir = os.path.join(args.data_path, scene, 'intrinsic', 'intrinsic_depth.txt')
             cam_intr = np.loadtxt(intrinsic_dir, delimiter=' ')[:3, :3]
             dataset = ScanNetDataset(n_imgs, scene, args.data_path, args.max_depth)
-                #여기서 return cam_pose, depth_im, color_image
+
         elif args.dataset == 'ARKit':
             n_imgs = len(os.listdir(os.path.join(args.data_path, scene, 'images')))
             intrinsic_dir = os.path.join(args.data_path, scene, 'intrinsic', '00000.txt')
@@ -295,7 +297,6 @@ if __name__ == "__main__":
     for w_idx in range(all_proc):  # process num * gpu num
         ray_worker_ids.append(process_with_single_worker.remote(args, files[w_idx]))
         #TODO:check ray.put()
-
             # Receive Object Id -> return Object value
     results = ray.get(ray_worker_ids)
 

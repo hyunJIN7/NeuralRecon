@@ -18,6 +18,7 @@ from datasets.sampler import DistributedSampler
 from ops.comm import *
 
 
+#python -m torch.distributed.launch --nproc_per_node=1 main.py --cfg ./config/train.yaml
 def args():
     parser = argparse.ArgumentParser(description='A PyTorch Implementation of NeuralRecon')
 
@@ -106,13 +107,13 @@ transform += [transforms.ResizeImage((640, 480)),
               transforms.ToTensor(),
               transforms.RandomTransformSpace(
                   cfg.MODEL.N_VOX, cfg.MODEL.VOXEL_SIZE, random_rotation, random_translation,
-                  paddingXY, paddingZ, max_epoch=cfg.TRAIN.EPOCHS),
+                  paddingXY, paddingZ, max_epoch=cfg.TRAIN.EPOCHS),  #max depth = 3으로 설정
               transforms.IntrinsicsPoseToProjection(n_views, 4),
               ]
 
 transforms = transforms.Compose(transform)
 
-# dataset, dataloader
+# dataset, dataloader 에서 데이터 읽어오며 transfrom 적용
 MVSDataset = find_dataset_def(cfg.DATASET)
 train_dataset = MVSDataset(cfg.TRAIN.PATH, "train", transforms, cfg.TRAIN.N_VIEWS, len(cfg.MODEL.THRESHOLDS) - 1)
 test_dataset = MVSDataset(cfg.TEST.PATH, "test", transforms, cfg.TEST.N_VIEWS, len(cfg.MODEL.THRESHOLDS) - 1)
@@ -198,11 +199,11 @@ def train():
         TrainImgLoader.dataset.epoch = epoch_idx
         TrainImgLoader.dataset.tsdf_cashe = {}
         # training
-        for batch_idx, sample in enumerate(TrainImgLoader):
+        for batch_idx, sample in enumerate(TrainImgLoader):  #scannet의 getitem 접근 ,transform 접근
             global_step = len(TrainImgLoader) * epoch_idx + batch_idx
             do_summary = global_step % cfg.SUMMARY_FREQ == 0
             start_time = time.time()
-            loss, scalar_outputs = train_sample(sample)
+            loss, scalar_outputs = train_sample(sample)  #여기쯤에서 neural model로 접근함
             if is_main_process():
                 logger.info(
                     'Epoch {}/{}, Iter {}/{}, train loss = {:.3f}, time = {:.3f}'.format(epoch_idx, cfg.TRAIN.EPOCHS,

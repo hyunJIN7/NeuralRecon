@@ -4,7 +4,7 @@ from torch.nn.functional import grid_sample
 
 def back_project(coords, origin, voxel_size, feats, KRcam):
     '''
-    Unproject the image fetures to form a 3D (sparse) feature volume
+    Unproject the image features to form a 3D (sparse) feature volume
 
     :param coords: coordinates of voxels,
     dim: (num of voxels, 4) (4 : batch ind, x, y, z)
@@ -22,38 +22,38 @@ def back_project(coords, origin, voxel_size, feats, KRcam):
     '''
     n_views, bs, c, h, w = feats.shape
 
-    feature_volume_all = torch.zeros(coords.shape[0], c + 1).cuda() #
-    count = torch.zeros(coords.shape[0]).cuda()
+    feature_volume_all = torch.zeros(coords.shape[0], c + 1).cuda() #voxel 수, feat의 c+1
+    count = torch.zeros(coords.shape[0]).cuda() #voxel cnt 만큼 (13824,)
 
     for batch in range(bs):
-        batch_ind = torch.nonzero(coords[:, 0] == batch).squeeze(1)
-        coords_batch = coords[batch_ind][:, 1:]
+        batch_ind = torch.nonzero(coords[:, 0] == batch).squeeze(1) #해당 배치인것에서 0아닌 값만 뽑아내고
+        coords_batch = coords[batch_ind][:, 1:] # 해당 배치에  coor,x,y,z
 
-        coords_batch = coords_batch.view(-1, 3) #voxel
+        #batch 만큼 데이터 분리
+        coords_batch = coords_batch.view(-1, 3) #(voxel수 , 3)
         origin_batch = origin[batch].unsqueeze(0)  # 그전voxel
         feats_batch = feats[:, batch]  #feature
         proj_batch = KRcam[:, batch]  #projection matrix
 
-        #기존 voxel 새 voxel 합치기위한 준비.?
-        grid_batch = coords_batch * voxel_size + origin_batch.float()
-        rs_grid = grid_batch.unsqueeze(0).expand(n_views, -1, -1)
+        grid_batch = coords_batch * voxel_size + origin_batch.float()  #(13824,3 )
+        rs_grid = grid_batch.unsqueeze(0).expand(n_views, -1, -1)  #(9,13284,3)으로 확장
         rs_grid = rs_grid.permute(0, 2, 1).contiguous()
         nV = rs_grid.shape[-1]
-        rs_grid = torch.cat([rs_grid, torch.ones([n_views, 1, nV]).cuda()], dim=1)
+        rs_grid = torch.cat([rs_grid, torch.ones([n_views, 1, nV]).cuda()], dim=1) #(9,4,13284)
 
         # Project grid
-        im_p = proj_batch @ rs_grid
+        im_p = proj_batch @ rs_grid #(9,4,복셀수)=(9,4,4) @ (9,4,복셀 수)
         im_x, im_y, im_z = im_p[:, 0], im_p[:, 1], im_p[:, 2]
         im_x = im_x / im_z
         im_y = im_y / im_z
 
-        im_grid = torch.stack([2 * im_x / (w - 1) - 1, 2 * im_y / (h - 1) - 1], dim=-1) #*2 -1 : [-1,1]범위로 만드는..
+        im_grid = torch.stack([2 * im_x / (w - 1) - 1, 2 * im_y / (h - 1) - 1], dim=-1) #*2 -1 : [-1,1]범위로 만드는.. rs_grid project 된 2D x,y 값
         mask = im_grid.abs() <= 1
         mask = (mask.sum(dim=-1) == 2) & (im_z > 0)
 
-        feats_batch = feats_batch.view(n_views, c, h, w)
-        im_grid = im_grid.view(n_views, 1, -1, 2) #flow field of shape..형상의 흐름장
-        features = grid_sample(feats_batch, im_grid, padding_mode='zeros', align_corners=True)
+        feats_batch = feats_batch.view(n_views, c, h, w) #(n_views, c, h, w)
+        im_grid = im_grid.view(n_views, 1, -1, 2)       # (9,1,voxel 개수 ,2)   #flow field of shape
+        features = grid_sample(feats_batch, im_grid, padding_mode='zeros', align_corners=True) #(n_views, c,h,w)
         # grid를 만들어
 
         features = features.view(n_views, c, -1)
@@ -66,7 +66,7 @@ def back_project(coords, origin, voxel_size, feats, KRcam):
         count[batch_ind] = mask.sum(dim=0).float()
 
         # aggregate multi view
-        features = features.sum(dim=0)
+        features = features.sum(dim=0) #nview features 를 합친다
         mask = mask.sum(dim=0)
         invalid_mask = mask == 0
         mask[invalid_mask] = 1

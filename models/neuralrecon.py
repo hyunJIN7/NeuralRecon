@@ -1,11 +1,12 @@
 import torch
 import torch.nn as nn
+import torchvision.utils
 
 from .backbone import MnasMulti
 from .neucon_network import NeuConNet
 from .gru_fusion import GRUFusion
 from utils import tocuda
-
+from torch.utils.tensorboard import SummaryWriter
 
 class NeuralRecon(nn.Module):
     '''
@@ -15,10 +16,10 @@ class NeuralRecon(nn.Module):
     def __init__(self, cfg):
         super(NeuralRecon, self).__init__()
         self.cfg = cfg.MODEL
-        alpha = float(self.cfg.BACKBONE2D.ARC.split('-')[-1])  #이 연산이 대체 뭘까
+        alpha = float(self.cfg.BACKBONE2D.ARC.split('-')[-1])  #alpha 1.0
         # other hparams
-        self.pixel_mean = torch.Tensor(cfg.MODEL.PIXEL_MEAN).view(-1, 1, 1)  #shpe(-1,1,1) 이렇게 만든다.
-        self.pixel_std = torch.Tensor(cfg.MODEL.PIXEL_STD).view(-1, 1, 1)
+        self.pixel_mean = torch.Tensor(cfg.MODEL.PIXEL_MEAN).view(-1, 1, 1)  #shpe(3,1,1) 이렇게 만든다.
+        self.pixel_std = torch.Tensor(cfg.MODEL.PIXEL_STD).view(-1, 1, 1) #(3,1,1)
         self.n_scales = len(self.cfg.THRESHOLDS) - 1
 
         # networks
@@ -71,11 +72,22 @@ class NeuralRecon(nn.Module):
         '''
         inputs = tocuda(inputs)
         outputs = {}
-        imgs = torch.unbind(inputs['imgs'], 1) #tensor 차원 제거 ,주어진 dim 따라 잘린 tuple return
+        writer=SummaryWriter('runs/test01/neuralrecon/imgs')
+
+        imgs = torch.unbind(inputs['imgs'], 1) #input data에서 image만 따로 빼냄
+
+        # img_grid = torchvision.utils.make_grid(imgs)
+        for img in imgs:
+            writer.add_image('img',img[0])
+        writer.close()
+        # writer.add_image('images ', img_grid)
 
         # image feature extraction
         # in: images; out: feature maps
+
         features = [self.backbone2d(self.normalizer(img)) for img in imgs]
+        # for feature in features:
+        #     writer.add_image('feature', feature)
 
         # coarse-to-fine decoder: SparseConv and GRU Fusion.
         # in: image feature; out: sparse coords and tsdf

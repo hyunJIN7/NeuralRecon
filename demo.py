@@ -37,13 +37,13 @@ else:
 logger.info("Running NeuralRecon...")
 
 #transform from [Atlas]에서 가져옴
-transform = [transforms.ResizeImage((640, 480)),  #이미지 resize가 결과에 영향은 안주나 ??..camera intrinsic까지 같이 비율 따져서 변화시켜서 괜찮나
-             transforms.ToTensor(),  #여기 보려면...
+transform = [transforms.ResizeImage((640, 480)),
+             transforms.ToTensor(),
              transforms.RandomTransformSpace(  # Apply a random 3x4 linear transform to the world coordinate system. , affects pose as well as TSDFs
                  cfg.MODEL.N_VOX, cfg.MODEL.VOXEL_SIZE, random_rotation=False, random_translation=False,
                  paddingXY=0, paddingZ=0, max_epoch=cfg.TRAIN.EPOCHS),   #train.epochs default 40
              transforms.IntrinsicsPoseToProjection(cfg.TEST.N_VIEWS, 4)]  #Convert intrinsics and extrinsics matrices to a single projection matrix
-transforms = transforms.Compose(transform)   #__call__ 다 불리지 않나
+transforms = transforms.Compose(transform)
 ARKitDataset = find_dataset_def(cfg.DATASET)   #demo인지 scannet 인지
 test_dataset = ARKitDataset(cfg.TEST.PATH, "test", transforms, cfg.TEST.N_VIEWS, len(cfg.MODEL.THRESHOLDS) - 1)
 data_loader = DataLoader(test_dataset, cfg.BATCH_SIZE, shuffle=False, num_workers=cfg.TEST.N_WORKERS, drop_last=False)
@@ -51,7 +51,7 @@ data_loader = DataLoader(test_dataset, cfg.BATCH_SIZE, shuffle=False, num_worker
 # model
 logger.info("Initializing the model on GPU...")
 model = NeuralRecon(cfg).cuda().eval()
-model = torch.nn.DataParallel(model, device_ids=[0])
+model = torch.nn.DataParallel(model, device_ids=[0]) #GPU병렬처리
 
 # use the latest checkpoint file
 saved_models = [fn for fn in os.listdir(cfg.LOGDIR) if fn.endswith(".ckpt")]
@@ -66,7 +66,7 @@ save_mesh_scene = SaveScene(cfg)
 logger.info("Start inference..")
 duration = 0.
 gpu_mem_usage = []
-frag_len = len(data_loader)  # TODO:여기서 에러 , totensor 진입
+frag_len = len(data_loader)
 with torch.no_grad():
     for frag_idx, sample in enumerate(tqdm(data_loader)):
         # save mesh if: 1. SAVE_SCENE_MESH and is the last fragment, or

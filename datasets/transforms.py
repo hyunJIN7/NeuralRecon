@@ -24,6 +24,9 @@ from utils import coordinates
 import transforms3d
 import torch
 from tools.tsdf_fusion.fusion import TSDFVolumeTorch
+from torch.utils.tensorboard import SummaryWriter
+
+
 
 
 class Compose(object):
@@ -41,13 +44,13 @@ class Compose(object):
 class ToTensor(object):
     """ Convert to torch tensors"""
 
-    def __call__(self, data):   # data는 transform(data)..?
-        data['imgs'] = torch.Tensor(np.stack(data['imgs']).transpose([0, 3, 1, 2]))  #transpose 뒤 뭐지
+    def __call__(self, data):
+        data['imgs'] = torch.Tensor(np.stack(data['imgs']).transpose([0, 3, 1, 2]))
         data['intrinsics'] = torch.Tensor(data['intrinsics'])
         data['extrinsics'] = torch.Tensor(data['extrinsics'])
         if 'depth' in data.keys():
             data['depth'] = torch.Tensor(np.stack(data['depth']))
-        if 'tsdf_list_full' in data.keys():
+        if 'tsdf_list_full' in data.keys(): # 전체 1로 차있는
             for i in range(len(data['tsdf_list_full'])):
                 if not torch.is_tensor(data['tsdf_list_full'][i]):
                     data['tsdf_list_full'][i] = torch.Tensor(data['tsdf_list_full'][i])
@@ -61,13 +64,12 @@ class IntrinsicsPoseToProjection(object):
         self.nviews = n_views
         self.stride = stride
 
-    #.......?????????????
     def rotate_view_to_align_xyplane(self, Tr_camera_to_world):
         # world space normal [0, 0, 1]  camera space normal [0, -1, 0]
-        z_c = np.dot(np.linalg.inv(Tr_camera_to_world), np.array([0, 0, 1, 0]))[: 3]  #linalg에  Inverse of a square matrix, 왜 하지 ..
+        z_c = np.dot(np.linalg.inv(Tr_camera_to_world), np.array([0, 0, 1, 0]))[: 3]  #extrin의 3행 3열까지만 남
         axis = np.cross(z_c, np.array([0, -1, 0])) # 벡터 곱 연산,외적 , 수직일때 최대, 평행일때 최소    Inverse of a square matrix  https://rfriend.tistory.com/tag/%EA%B5%90%EC%B0%A8%EA%B3%B1
-        axis = axis / np.linalg.norm(axis)   #
-        theta = np.arccos(-z_c[1] / (np.linalg.norm(z_c)))
+        axis = axis / np.linalg.norm(axis)
+        theta = np.arccos(-z_c[1] / (np.linalg.norm(z_c))) #2번째 요소 축과 사이 각
         quat = transforms3d.quaternions.axangle2quat(axis, theta)   # Quaternion for rotation of angle `theta` around `vector`
         rotation_matrix = transforms3d.quaternions.quat2mat(quat)  #Calculate rotation matrix corresponding to quaternion
         return rotation_matrix      #quaternion : 방향,회전 표현, (x,y,z,w) 벡터(x,y,z)와 스칼라 (z)  , 짐벌락 문제 발생안함  https://hub1234.tistory.com/21
@@ -100,17 +102,17 @@ class IntrinsicsPoseToProjection(object):
 def pad_scannet(img, intrinsics):
     """ Scannet images are 1296x968 but 1296x972 is 4x3
     so we pad vertically 4 pixels to make it 4x3
+    image 비율 4:3맞게 이미지 사이즈 늘려주고 이에 맞춰 instrinsc의 주점도 변화시킴.
     """
 
     w, h = img.size
     if w == 1296 and h == 968:
-        img = ImageOps.expand(img, border=(0, 2))
+        img = ImageOps.expand(img, border=(0, 2)) # ( 1296, 968 ) -> ( 1296, 972 ) height
         intrinsics[1, 2] += 2 #이미지 크기 늘린만큼 그냥 늘려주나??...
-        #TODO: +=2 값 변화??
     return img, intrinsics
 
 
-class ResizeImage(object):  #(640,480) 으로 고정시킴 , 4:3비율  왜
+class ResizeImage(object):  #(640,480) 으로 고정시킴
     """ Resize everything to given size.
 
     Intrinsics are assumed to refer to image prior to resize.
@@ -121,13 +123,13 @@ class ResizeImage(object):  #(640,480) 으로 고정시킴 , 4:3비율  왜
         self.size = size
 
     def __call__(self, data):
-        for i, im in enumerate(data['imgs']):  #data가 뭘까
+        for i, im in enumerate(data['imgs']):
             im, intrinsics = pad_scannet(im, data['intrinsics'][i]) #이미지 비율 4:3으로 맞추는 과정, Scannet 기준 세로 4pixel 늘리기
             #intrinsics (9,3,3)  이미지 하나당 9개? ..
             w, h = im.size
-            im = im.resize(self.size, Image.BILINEAR)  #bilinear interpolation으로 이미지 resize..? 위에 pad_scannet에선 특정 사이즈일때만 사지으에 변화를 줌
+            im = im.resize(self.size, Image.BILINEAR)  #bilinear interpolation으로 이미지  (640,480)  resize
             #카메라 내부 매개변수 알면 픽셀좌표와 정규 좌표 사이 변환 가능하니,이미지 -> (640,480)으로  resize 했으니 intrinsics도 그 비율에 맞춰 변화
-            intrinsics[0, :] /= (w / self.size[0]) #640
+            intrinsics[0, :] /= (w / self.size[0])  #640
             intrinsics[1, :] /= (h / self.size[1])
 
             data['imgs'][i] = np.array(im, dtype=np.float32)
@@ -152,8 +154,8 @@ class RandomTransformSpace(object):
         """
         Args:
             voxel_dim: tuple of 3 ints (nx,ny,nz) specifying
-                the size of the output volume
-            voxel_size: floats specifying the size of a voxel
+                the size of the output volume 출력볼륨크기
+            voxel_size: floats specifying the size of a voxel  0.04m , 최종 복셀 크기
             random_rotation: wheater or not to apply a random rotation
             random_translation: wheater or not to apply a random translation
             paddingXY: amount to allow croping beyond maximum extent of TSDF, max TSDF 값 넘어서면 crop할 양
@@ -173,14 +175,14 @@ class RandomTransformSpace(object):
         # no need to pad above (bias towards floor in volume)
         self.padding_end = torch.Tensor([paddingXY, paddingXY, 0])
 
-        # each epoch has the same transformation
-        self.random_r = torch.rand(max_epoch)
+        # each epoch has the same transformation   0~1 사이 값으로
+        self.random_r = torch.rand(max_epoch)  #shape(epoch)
         self.random_t = torch.rand((max_epoch, 3))
 
     def __call__(self, data):
         origin = torch.Tensor(data['vol_origin'])
         if (not self.random_rotation) and (not self.random_translation):
-            T = torch.eye(4)
+            T = torch.eye(4) #대각만 1인 2차 텐서
         else:
             # construct rotaion matrix about z axis
             if self.random_rotation:
@@ -188,13 +190,16 @@ class RandomTransformSpace(object):
             else:
                 r = 0
             # first construct it in 2d so we can rotate bounding corners in the plane
+            # 평면에서 bounding corner를 2d rotate, z축 기준 회전이니까
             R = torch.tensor([[np.cos(r), -np.sin(r)],
                               [np.sin(r), np.cos(r)]], dtype=torch.float32)
 
             # get corners of bounding volume
-            voxel_dim_old = torch.tensor(data['tsdf_list_full'][0].shape) * self.voxel_size
-            xmin, ymin, zmin = origin
+            # tsdf_list_full[0].shape  * 0.04  : 1로된 복셀 x,y,z 수에다 복셀 실제 크기 곱해 bounding volume 만들어놓기
+            voxel_dim_old = torch.tensor(data['tsdf_list_full'][0].shape) * self.voxel_size #0.04
+            xmin, ymin, zmin = origin #지금 scene의 origin(world 기준인듯) generate_gt 파일 확인 필요
             xmax, ymax, zmax = origin + voxel_dim_old
+            #origin으로 부터 실제 사이즈의 bounding volume 범위 만들어 놓음
 
             corners2d = torch.tensor([[xmin, xmin, xmax, xmax],
                                       [ymin, ymax, ymin, ymax]], dtype=torch.float32)
@@ -214,13 +219,15 @@ class RandomTransformSpace(object):
             voxel_dim = list(data['tsdf_list_full'][0].shape)
             start = torch.Tensor([xmin, ymin, zmin]) - self.padding_start
             end = (-torch.Tensor(voxel_dim) * self.voxel_size +
-                   torch.Tensor([xmax, ymax, zmax]) + self.padding_end)
+                   torch.Tensor([xmax, ymax, zmax]) + self.padding_end)  #end에서 voxel_dim은 왜 빼는거지???
             if self.random_translation:
                 t = self.random_t[data['epoch'][0]]
             else:
                 t = .5
             t = t * start + (1 - t) * end - origin
 
+            # 여러뷰 합쳐저 하나 된거라 그거 평균낸건가????????????
+            #평균은 아니야 extrinsic 각각 따로 해주니까 의미가 뭘까
             T = torch.eye(4)
 
             T[:2, :2] = R

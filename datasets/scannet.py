@@ -16,7 +16,7 @@ class ScanNetDataset(Dataset):
         self.tsdf_file = 'all_tsdf_{}'.format(self.n_views)
 
         assert self.mode in ["train", "val", "test"]
-        self.metas = self.build_list()
+        self.metas = self.build_list() # .pkl파일에서 메타데이터 읽어옴
         if mode == 'test':
             self.source_path = 'scans_test'
         else:
