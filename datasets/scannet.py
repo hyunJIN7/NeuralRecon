@@ -16,7 +16,7 @@ class ScanNetDataset(Dataset):
         self.tsdf_file = 'all_tsdf_{}'.format(self.n_views)
 
         assert self.mode in ["train", "val", "test"]
-        self.metas = self.build_list() # .pkl파일에서 메타데이터 읽어옴
+        self.metas = self.build_list()  # .pkl파일에서 메타데이터 읽어옴
         if mode == 'test':
             self.source_path = 'scans_test'
         else:
@@ -50,7 +50,7 @@ class ScanNetDataset(Dataset):
         depth_im = cv2.imread(filepath, -1).astype(
             np.float32)
         depth_im /= 1000.  # depth is saved in 16-bit PNG in millimeters
-        depth_im[depth_im > 3.0] = 0
+        depth_im[depth_im > 3.0] = 0  #TODO : max depth 3m 다른 값으로 바꿔보기
         return depth_im
 
     def read_scene_volumes(self, data_path, scene):

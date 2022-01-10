@@ -7,6 +7,7 @@ from .neucon_network import NeuConNet
 from .gru_fusion import GRUFusion
 from utils import tocuda
 from torch.utils.tensorboard import SummaryWriter
+writer = SummaryWriter('runs/neuralrecon_exp1')
 
 class NeuralRecon(nn.Module):
     '''
@@ -18,9 +19,9 @@ class NeuralRecon(nn.Module):
         self.cfg = cfg.MODEL
         alpha = float(self.cfg.BACKBONE2D.ARC.split('-')[-1])  #alpha 1.0
         # other hparams
-        self.pixel_mean = torch.Tensor(cfg.MODEL.PIXEL_MEAN).view(-1, 1, 1)  #shpe(3,1,1) 이렇게 만든다.
+        self.pixel_mean = torch.Tensor(cfg.MODEL.PIXEL_MEAN).view(-1, 1, 1)  # [103.53, 116.28, 123.675]  shpe(3,1,1) 이렇게 만든다.
         self.pixel_std = torch.Tensor(cfg.MODEL.PIXEL_STD).view(-1, 1, 1) #(3,1,1)
-        self.n_scales = len(self.cfg.THRESHOLDS) - 1
+        self.n_scales = len(self.cfg.THRESHOLDS) - 1 #
 
         # networks
         self.backbone2d = MnasMulti(alpha)  #backbone : MNASNet +  Feature Pyramid Network
@@ -30,6 +31,7 @@ class NeuralRecon(nn.Module):
 
     def normalizer(self, x):
         """ Normalizes the RGB images to the input range"""
+        #image type 따라 normalize 하는 건가봐  현재 type은 뭔지 체크
         return (x - self.pixel_mean.type_as(x)) / self.pixel_std.type_as(x)
 
     def forward(self, inputs, save_mesh=False):
@@ -72,22 +74,17 @@ class NeuralRecon(nn.Module):
         '''
         inputs = tocuda(inputs)
         outputs = {}
-        writer=SummaryWriter('runs/test01/neuralrecon/imgs')
+
 
         imgs = torch.unbind(inputs['imgs'], 1) #input data에서 image만 따로 빼냄
 
-        # img_grid = torchvision.utils.make_grid(imgs)
-        for img in imgs:
-            writer.add_image('img',img[0])
-        writer.close()
-        # writer.add_image('images ', img_grid)
 
-        # image feature extraction
-        # in: images; out: feature maps
+        # for img in imgs:
+        #     writer.add_image('img',img[0])
+        # writer.close()
 
         features = [self.backbone2d(self.normalizer(img)) for img in imgs]
-        # for feature in features:
-        #     writer.add_image('feature', feature)
+
 
         # coarse-to-fine decoder: SparseConv and GRU Fusion.
         # in: image feature; out: sparse coords and tsdf

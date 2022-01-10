@@ -111,7 +111,7 @@ def process(scene, total_scenes_index, total_scenes_count):
 
     test_framid = os.listdir(os.path.join(args.data_path, scene, 'images'))  #color
     n_imgs = len(test_framid)
-    intrinsic_dir = os.path.join(args.data_path, scene, 'intrinsics', '00000.txt')  #TODO : 'intrinsic','intrinsic_depth.txt'   가 그냥 instrinsic???
+    intrinsic_dir = os.path.join(args.data_path, scene, 'intrinsics', '00000.txt')
     cam_intr = np.loadtxt(intrinsic_dir, delimiter=' ')[:3, :3]
     #dataset = ScanNetDataset(n_imgs, scene, args.data_path, args.max_depth)
     dataset = ARKitDataset(n_imgs, scene, args.data_path, args.max_depth)

@@ -84,6 +84,7 @@ class SPVCNN(nn.Module):
             self.pres = kwargs['pres']
             self.vres = kwargs['vres']
 
+#kwargs['in_channels'] 값  : ch_in = [80 * alpha + 1, 96 + 40 * alpha + 2 + 1, 48 + 24 * alpha + 2 + 1, 24 + 24 + 2 + 1]  #[81,139,75,51] #spvcnn의 input dim
         self.stem = nn.Sequential(
             spnn.Conv3d(kwargs['in_channels'], cs[0], kernel_size=3, stride=1),
             spnn.BatchNorm(cs[0]), spnn.ReLU(True)

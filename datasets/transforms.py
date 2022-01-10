@@ -24,9 +24,13 @@ from utils import coordinates
 import transforms3d
 import torch
 from tools.tsdf_fusion.fusion import TSDFVolumeTorch
+
+#추가
 from torch.utils.tensorboard import SummaryWriter
-
-
+writer = SummaryWriter('runs/tranforms_epx1')
+import matplotlib.pyplot as plt
+import mpl_toolkits.mplot3d
+# from util.camera_pose_visualizer import CameraPoseVisualizer
 
 
 class Compose(object):
@@ -58,28 +62,32 @@ class ToTensor(object):
 
 #transforms.IntrinsicsPoseToProjection(cfg.TEST.N_VIEWS, 4)]   N_VIEWS 9
 class IntrinsicsPoseToProjection(object):
-    """ Convert intrinsics and extrinsics matrices to a single projection matrix"""
+    """ Convert intrinsics and extrinsics matrices to a single projection matrix
+        World에서 Film coords로
+    """
 
     def __init__(self, n_views, stride=1):
         self.nviews = n_views
         self.stride = stride
 
-    def rotate_view_to_align_xyplane(self, Tr_camera_to_world):
-        # world space normal [0, 0, 1]  camera space normal [0, -1, 0]
-        z_c = np.dot(np.linalg.inv(Tr_camera_to_world), np.array([0, 0, 1, 0]))[: 3]  #extrin의 3행 3열까지만 남
+        #여기가 frame들 정렬 맞추는 곳
+    def rotate_view_to_align_xyplane(self, Tr_camera_to_world): #extrinsic (9,4,4)
+        # world space normal [0, 0, 1](xy plane)  camera space normal [0, -1, 0]
+        z_c = np.dot(np.linalg.inv(Tr_camera_to_world), np.array([0, 0, 1, 0]))[: 3]  #xy plane을 world to camera 내적..의미가 뭘까
         axis = np.cross(z_c, np.array([0, -1, 0])) # 벡터 곱 연산,외적 , 수직일때 최대, 평행일때 최소    Inverse of a square matrix  https://rfriend.tistory.com/tag/%EA%B5%90%EC%B0%A8%EA%B3%B1
-        axis = axis / np.linalg.norm(axis)
-        theta = np.arccos(-z_c[1] / (np.linalg.norm(z_c))) #2번째 요소 축과 사이 각
+        axis = axis / np.linalg.norm(axis)  #사이즈 1로 맞춤
+        theta = np.arccos(-z_c[1] / (np.linalg.norm(z_c))) #y값 z_c
         quat = transforms3d.quaternions.axangle2quat(axis, theta)   # Quaternion for rotation of angle `theta` around `vector`
         rotation_matrix = transforms3d.quaternions.quat2mat(quat)  #Calculate rotation matrix corresponding to quaternion
         return rotation_matrix      #quaternion : 방향,회전 표현, (x,y,z,w) 벡터(x,y,z)와 스칼라 (z)  , 짐벌락 문제 발생안함  https://hub1234.tistory.com/21
 
     def __call__(self, data):
-        middle_pose = data['extrinsics'][self.nviews // 2]  # //:몫 연산자
+        middle_pose = data['extrinsics'][self.nviews // 2]  # //:몫 연산자 ,  n_view의 중간 pose
         rotation_matrix = self.rotate_view_to_align_xyplane(middle_pose)
         rotation_matrix4x4 = np.eye(4)
         rotation_matrix4x4[:3, :3] = rotation_matrix
         data['world_to_aligned_camera'] = torch.from_numpy(rotation_matrix4x4).float() @ middle_pose.inverse()
+        #world에 정렬된 camera
 
         proj_matrices = []
         for intrinsics, extrinsics in zip(data['intrinsics'], data['extrinsics']):
@@ -104,7 +112,6 @@ def pad_scannet(img, intrinsics):
     so we pad vertically 4 pixels to make it 4x3
     image 비율 4:3맞게 이미지 사이즈 늘려주고 이에 맞춰 instrinsc의 주점도 변화시킴.
     """
-
     w, h = img.size
     if w == 1296 and h == 968:
         img = ImageOps.expand(img, border=(0, 2)) # ( 1296, 968 ) -> ( 1296, 972 ) height
@@ -226,20 +233,19 @@ class RandomTransformSpace(object):
                 t = .5
             t = t * start + (1 - t) * end - origin
 
-            # 여러뷰 합쳐저 하나 된거라 그거 평균낸건가????????????
-            #평균은 아니야 extrinsic 각각 따로 해주니까 의미가 뭘까
             T = torch.eye(4)
 
             T[:2, :2] = R
             T[:3, 3] = -t
 
+        np.save('extrinsics_before', data['extrinsics'] )
         for i in range(len(data['extrinsics'])):
             data['extrinsics'][i] = T @ data['extrinsics'][i]
 
         data['vol_origin'] = torch.tensor(self.origin, dtype=torch.float, device=T.device)
-
+        np.save('extrinsics_after', data['extrinsics'] )
+        np.save('T_transforms_random',T)
         data = self.transform(data, T.inverse(), old_origin=origin)
-
         return data
 
     def transform(self, data, transform=None, old_origin=None,
@@ -265,18 +271,18 @@ class RandomTransformSpace(object):
         bnds[:, 0] = np.inf
         bnds[:, 1] = -np.inf
 
-        for i in range(data['imgs'].shape[0]):
+        # 10개 view frustum 가지고  min,max boundary 구함
+        for i in range(data['imgs'].shape[0]):  #n개의 이미지
             size = data['imgs'][i].shape[1:]
             cam_intr = data['intrinsics'][i]
             cam_pose = data['extrinsics'][i]
-            view_frust_pts = get_view_frustum(self.max_depth, size, cam_intr, cam_pose)
+            view_frust_pts = get_view_frustum(self.max_depth, size, cam_intr, cam_pose) #max_dept = 3
             bnds[:, 0] = torch.min(bnds[:, 0], torch.min(view_frust_pts, dim=1)[0])
             bnds[:, 1] = torch.max(bnds[:, 1], torch.max(view_frust_pts, dim=1)[0])
 
         # -------adjust volume bounds-------
         num_layers = 3
-        center = (torch.tensor(((bnds[0, 1] + bnds[0, 0]) / 2, (bnds[1, 1] + bnds[1, 0]) / 2, -0.2)) - data[
-            'vol_origin']) / self.voxel_size
+        center = (torch.tensor(((bnds[0, 1] + bnds[0, 0]) / 2, (bnds[1, 1] + bnds[1, 0]) / 2, -0.2)) - data['vol_origin']) / self.voxel_size
         center[:2] = torch.round(center[:2] / 2 ** num_layers) * 2 ** num_layers
         center[2] = torch.floor(center[2] / 2 ** num_layers) * 2 ** num_layers
         origin = torch.zeros_like(center)
@@ -311,6 +317,7 @@ class RandomTransformSpace(object):
                     cam_intr = data['intrinsics'][i]
                     cam_pose = data['extrinsics'][i]
 
+                    # Integrate an RGB-D frame into the TSDF volume.
                     tsdf_vol.integrate(depth_im, cam_intr, cam_pose, obs_weight=1.)
 
                 tsdf_vol, weight_vol = tsdf_vol.get_volume()
@@ -358,7 +365,7 @@ class RandomTransformSpace(object):
 
 
 def rigid_transform(xyz, transform):
-    """Applies a rigid transform to an (N, 3) pointcloud.
+    """ Applies a rigid transform to an (N, 3) pointcloud.
     """
     xyz_h = torch.cat([xyz, torch.ones((len(xyz), 1))], dim=1)
     xyz_t_h = (transform @ xyz_h.T).T
@@ -366,19 +373,17 @@ def rigid_transform(xyz, transform):
 
 
 def get_view_frustum(max_depth, size, cam_intr, cam_pose):
-    """Get corners of 3D camera view frustum of depth image
+    """ Get corners of 3D camera view frustum of depth image
     """
     im_h, im_w = size
     im_h = int(im_h)
     im_w = int(im_w)
     view_frust_pts = torch.stack([
-        (torch.tensor([0, 0, 0, im_w, im_w]) - cam_intr[0, 2]) * torch.tensor(
-            [0, max_depth, max_depth, max_depth, max_depth]) /
-        cam_intr[0, 0],
-        (torch.tensor([0, 0, im_h, 0, im_h]) - cam_intr[1, 2]) * torch.tensor(
-            [0, max_depth, max_depth, max_depth, max_depth]) /
-        cam_intr[1, 1],
+        (torch.tensor([0, 0, 0, im_w, im_w]) - cam_intr[0, 2]) * torch.tensor( [0, max_depth, max_depth, max_depth, max_depth]) / cam_intr[0, 0],
+        (torch.tensor([0, 0, im_h, 0, im_h]) - cam_intr[1, 2]) * torch.tensor([0, max_depth, max_depth, max_depth, max_depth]) / cam_intr[1, 1],
         torch.tensor([0, max_depth, max_depth, max_depth, max_depth])
     ])
     view_frust_pts = rigid_transform(view_frust_pts.T, cam_pose).T
+
+
     return view_frust_pts

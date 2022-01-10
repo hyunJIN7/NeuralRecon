@@ -10,6 +10,7 @@ class GRUFusion(nn.Module):
     Two functionalities of this class:
     1. GRU Fusion module as in the paper. Update hidden state features with ConvGRU.
     2. Substitute TSDF in the global volume when direct_substitute = True.
+    GRUFusion makes current fragment recon conditioned on the previously reconstructed global volume
     """
 
     def __init__(self, cfg, ch_in=None, direct_substitute=False):

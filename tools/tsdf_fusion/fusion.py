@@ -6,6 +6,14 @@ from numba import njit, prange
 from skimage import measure
 import torch
 
+
+"""추가"""
+import numpy
+import matplotlib.pyplot as plt
+import mpl_toolkits.mplot3d
+from torch.utils.tensorboard import SummaryWriter
+writer = SummaryWriter('runs/fusion_exp1')
+
 #tsdf_vol_list.append(TSDFVolume(vol_bnds, voxel_size=args.voxel_size * 2 ** l, margin=args.margin))
 class TSDFVolume:
     """Volumetric TSDF Fusion of RGB-D Images.
@@ -168,13 +176,14 @@ class TSDFVolume:
             ], axis=0).astype(int).T
 
     @staticmethod
-    @njit(parallel=True)
+    @njit(parallel=True) # 병렬연산 및 최적화 관련
     def vox2world(vol_origin, vox_coords, vox_size):
         """Convert voxel grid coordinates to world coordinates.
+            voxel coordinate에 voxel size곱해서 origin 더 해준다.
         """
         vol_origin = vol_origin.astype(np.float32)
         vox_coords = vox_coords.astype(np.float32)
-        cam_pts = np.empty_like(vox_coords, dtype=np.float32)
+        cam_pts = np.empty_like(vox_coords, dtype=np.float32) #같은 형태 가지는 새로운 어레이, 값이 같지 않음 , 초기화 되어있지 않다.
         for i in prange(vox_coords.shape[0]):
             for j in range(3):
                 cam_pts[i, j] = vol_origin[j] + (vox_size * vox_coords[i, j])
@@ -198,6 +207,7 @@ class TSDFVolume:
     @njit(parallel=True)
     def integrate_tsdf(tsdf_vol, dist, w_old, obs_weight):
         """Integrate the TSDF volume.
+            obs_weight default 1. 인가봐
         """
         tsdf_vol_int = np.empty_like(tsdf_vol, dtype=np.float32)
         w_new = np.empty_like(w_old, dtype=np.float32)
@@ -214,8 +224,7 @@ class TSDFVolume:
           depth_im (ndarray): A depth image of shape (H, W).
           cam_intr (ndarray): The camera intrinsics matrix of shape (3, 3).
           cam_pose (ndarray): The camera pose (i.e. extrinsics) of shape (4, 4).
-          obs_weight (float): The weight to assign for the current observation. A higher
-            value
+          obs_weight (float): The weight to assign for the current observation. A higher value
         """
         im_h, im_w = depth_im.shape
 

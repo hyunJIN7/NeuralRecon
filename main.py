@@ -90,7 +90,7 @@ if is_main_process():
 
 # Augmentation
 if cfg.MODE == 'train':
-    n_views = cfg.TRAIN.N_VIEWS
+    n_views = cfg.TRAIN.N_VIEWS #n_views default에선 5, 실제는 9로 나옴 , 왜지 아무튼
     random_rotation = cfg.TRAIN.RANDOM_ROTATION_3D
     random_translation = cfg.TRAIN.RANDOM_TRANSLATION_3D
     paddingXY = cfg.TRAIN.PAD_XY_3D
@@ -199,7 +199,7 @@ def train():
         TrainImgLoader.dataset.epoch = epoch_idx
         TrainImgLoader.dataset.tsdf_cashe = {}
         # training
-        for batch_idx, sample in enumerate(TrainImgLoader):  #scannet의 getitem 접근 ,transform 접근
+        for batch_idx, sample in enumerate(TrainImgLoader):  #scannet.py의 getitem 접근 ,transform 접근
             global_step = len(TrainImgLoader) * epoch_idx + batch_idx
             do_summary = global_step % cfg.SUMMARY_FREQ == 0
             start_time = time.time()

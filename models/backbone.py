@@ -86,8 +86,6 @@ class MnasMulti(nn.Module):
         outputs.append(out)
 
         intra_feat = F.interpolate(intra_feat, scale_factor=2, mode="nearest") + self.inner1(conv1)
-        #tt1 = F.interpolate(intra_feat, scale_factor=2, mode="nearest")
-        #tt2 = self.inner1(conv1)
         out = self.out2(intra_feat)
         outputs.append(out)
 

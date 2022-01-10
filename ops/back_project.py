@@ -13,14 +13,14 @@ def back_project(coords, origin, voxel_size, feats, KRcam):
     :param voxel_size: floats specifying the size of a voxel
     :param feats: image features
     dim: (num of views, batch size, C, H, W)
-    :param KRcam: projection matrix
+    :param KRcam: projection matrix          3D camera coordi ->
     dim: (num of views, batch size, 4, 4)
     :return: feature_volume_all: 3D feature volumes
     dim: (num of voxels, c + 1)
     :return: count: number of times each voxel can be seen
     dim: (num of voxels,)
     '''
-    n_views, bs, c, h, w = feats.shape
+    n_views, bs, c, h, w = feats.shape  #TODO:feature shape 확인 필요,back project 어떻게 되는지  
 
     feature_volume_all = torch.zeros(coords.shape[0], c + 1).cuda() #voxel 수, feat의 c+1
     count = torch.zeros(coords.shape[0]).cuda() #voxel cnt 만큼 (13824,)

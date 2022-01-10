@@ -10,11 +10,17 @@ import ray
 import torch.multiprocessing
 from tools.simple_loader import *
 
+
+"""추가"""
+import numpy
+import matplotlib.pyplot as plt
+import mpl_toolkits.mplot3d
+from torch.utils.tensorboard import SummaryWriter
+writer = SummaryWriter('runs/generate_gt_exp1')
+
 torch.multiprocessing.set_sharing_strategy('file_system')
 
 #python tools/tsdf_fusion/generate_gt.py --data_path /home/hyunjin/PycharmProjects/NeuralRecon/data/scannet --save_name all_tsdf_9 --window_size 9
-
-#python tools/tsdf_fusion/generate_gt.py --test --data_path data/scannet --save_name all_tsdf_9 --window_size 9
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Fuse ground truth tsdf')

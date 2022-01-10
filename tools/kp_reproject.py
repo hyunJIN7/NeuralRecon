@@ -57,7 +57,6 @@ def load_camera_pose(cam_pose_dir, use_homogenous=True, data_source='TagBA'):
         rot_mat = quat2mat(np.append(quat[-1], quat[:3]).tolist())
                             # 여기선 (w,x,y,z) 순 인듯
         if data_source == 'ARKit':
-            # TODO: 왜하는거지
             rot_mat = rot_mat.dot(np.array([  #dot은 아무튼 내적  열,행 크기 맞아야함
                 [1, 0, 0],
                 [0, -1, 0],
